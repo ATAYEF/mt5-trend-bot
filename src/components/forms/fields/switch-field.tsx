@@ -28,9 +28,9 @@ export function SwitchField({
       dir="rtl"
     >
       <div className="flex flex-col gap-0.5">
-        <Label className="text-xs font-medium text-foreground/90 text-right">{label}</Label>
+        <Label className="form-field-label text-right !mb-0">{label}</Label>
         {description && (
-          <p className="text-[11px] text-muted-foreground leading-snug text-right">
+          <p className="form-field-desc text-right !mt-0">
             {description}
           </p>
         )}

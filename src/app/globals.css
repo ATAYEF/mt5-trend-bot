@@ -470,3 +470,198 @@ input[type="text"] {
   letter-spacing: 0.05em;
   direction: ltr;
 }
+
+/* ===== Settings form typography & visual hierarchy =====
+   A consistent scale for the BotConfigForm so that section titles,
+   subsection captions, field labels and help text are visually
+   distinct and easy to scan.
+*/
+
+/* Form-level card — slightly more prominent border + header */
+.form-card {
+  border: 1px solid oklch(0.45 0.02 240 / 30%);
+  background-image: linear-gradient(
+    to bottom,
+    oklch(0.245 0.013 240 / 80%),
+    oklch(0.215 0.013 240 / 80%)
+  );
+}
+.form-card [data-slot="card-header"] {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid oklch(0.4 0.02 240 / 30%);
+  background: oklch(0.24 0.015 240 / 50%);
+}
+.form-card [data-slot="card-content"] {
+  padding: 0.75rem 0.5rem 1.25rem 0.5rem;
+}
+
+/* Page title inside form card (e.g. "پیکربندی ربات") */
+.form-card-title {
+  font-size: 1.125rem;       /* text-lg */
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: oklch(0.98 0.005 220);
+}
+.form-card-subtitle {
+  font-size: 0.75rem;        /* text-xs */
+  color: oklch(0.65 0.012 240);
+  margin-top: 0.125rem;
+  line-height: 1.4;
+}
+
+/* Meta badges row (Magic Number, Initial Balance) — clearer hierarchy */
+.form-meta-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  direction: ltr;
+}
+.form-meta-badge-key {
+  color: oklch(0.6 0.01 240);
+  font-weight: 600;
+}
+.form-meta-badge-val {
+  color: oklch(0.95 0.01 220);
+}
+
+/* Accordion section number badge (e.g. "۱", "۲", ...) */
+.form-section-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.75rem;
+  background: oklch(0.36 0.02 240);
+  color: oklch(0.85 0.13 165);
+  border: 1px solid oklch(0.5 0.05 165 / 40%);
+  flex-shrink: 0;
+}
+/* Accordion trigger — title row */
+[data-slot="accordion-trigger"] .form-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: oklch(0.96 0.005 220);
+  letter-spacing: -0.005em;
+}
+[data-slot="accordion-trigger"] .form-section-subtitle {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: oklch(0.6 0.012 240);
+  margin-top: 0.125rem;
+  line-height: 1.3;
+}
+
+/* Subsection caption inside AccordionContent — small uppercase-style label */
+.form-subsection-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: oklch(0.78 0.015 220);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  border-right: 3px solid oklch(0.55 0.13 165);
+  padding-right: 0.5rem;
+}
+.form-subsection-desc {
+  font-size: 0.7rem;
+  color: oklch(0.6 0.012 240);
+  margin-top: 0.125rem;
+  line-height: 1.4;
+}
+
+/* Field label — slightly larger & clearer weight */
+.form-field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: oklch(0.88 0.01 220);
+  letter-spacing: 0.01em;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+/* Field description / help text — italic, lighter */
+.form-field-desc {
+  font-size: 0.7rem;
+  color: oklch(0.6 0.012 240);
+  line-height: 1.4;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+/* Risk preset quick-apply section */
+.form-preset-section {
+  background: linear-gradient(
+    to left,
+    oklch(0.32 0.05 165 / 20%),
+    oklch(0.28 0.04 165 / 8%)
+  );
+  border: 1px solid oklch(0.5 0.1 165 / 30%);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+.form-preset-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: oklch(0.78 0.13 165);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Profile list item — improved hierarchy */
+.profile-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+  text-align: right;
+}
+.profile-item-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: oklch(0.95 0.005 220);
+  line-height: 1.3;
+}
+.profile-item-meta {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: oklch(0.6 0.012 240);
+  letter-spacing: 0.02em;
+}
+
+/* Action bar buttons — improved spacing */
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.action-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  background: oklch(0.24 0.013 240 / 50%);
+}
+.action-bar-group--primary {
+  background: oklch(0.26 0.02 165 / 20%);
+  border: 1px solid oklch(0.4 0.05 165 / 30%);
+}
+.action-bar-separator {
+  width: 1px;
+  height: 1.5rem;
+  background: oklch(0.4 0.02 240 / 30%);
+  margin: 0 0.25rem;
+}

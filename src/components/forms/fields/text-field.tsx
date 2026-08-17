@@ -28,8 +28,8 @@ export function TextField({
   className,
 }: TextFieldProps) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label className="text-xs font-medium text-foreground/90 text-right">{label}</Label>
+    <div className={cn("flex flex-col gap-1", className)}>
+      <Label className="form-field-label text-right">{label}</Label>
       <Input
         type={type}
         value={value}
@@ -39,7 +39,7 @@ export function TextField({
         className={cn(mono && "font-mono", "text-right")}
       />
       {description && (
-        <p className="text-[11px] text-muted-foreground leading-snug text-right">
+        <p className="form-field-desc text-right">
           {description}
         </p>
       )}

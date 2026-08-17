@@ -37,8 +37,8 @@ export function SelectField({
   // Select doesn't accept empty string as value; use sentinel "none"
   const cur = value == null || value === "" ? undefined : String(value);
   return (
-    <div className={cn("flex flex-col gap-1.5", className)} dir="rtl">
-      <Label className="text-xs font-medium text-foreground/90 text-right">{label}</Label>
+    <div className={cn("flex flex-col gap-1", className)} dir="rtl">
+      <Label className="form-field-label text-right">{label}</Label>
       <Select value={cur} onValueChange={onChange}>
         <SelectTrigger className="w-full text-right" dir="rtl">
           <SelectValue placeholder={placeholder} />
@@ -52,7 +52,7 @@ export function SelectField({
         </SelectContent>
       </Select>
       {description && (
-        <p className="text-[11px] text-muted-foreground leading-snug text-right">
+        <p className="form-field-desc text-right">
           {description}
         </p>
       )}

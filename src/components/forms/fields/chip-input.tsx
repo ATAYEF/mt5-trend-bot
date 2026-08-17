@@ -52,9 +52,9 @@ export function ChipInput({
   const available = suggestions.filter((s) => !values.includes(s.toUpperCase()));
 
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex flex-col gap-1", className)} dir="rtl">
       {label && (
-        <Label className="text-xs font-medium text-foreground/90">{label}</Label>
+        <Label className="form-field-label text-right">{label}</Label>
       )}
       <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/40 p-2.5">
         <div className="flex flex-wrap gap-1.5" dir="rtl">
@@ -107,7 +107,7 @@ export function ChipInput({
         )}
       </div>
       {description && (
-        <p className="text-[11px] text-muted-foreground leading-snug">
+        <p className="form-field-desc text-right">
           {description}
         </p>
       )}

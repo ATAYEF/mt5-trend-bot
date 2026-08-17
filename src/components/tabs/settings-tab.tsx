@@ -198,15 +198,15 @@ export function SettingsTab() {
     <div className="grid grid-cols-1 gap-3 md:grid-cols-[280px_1fr]">
       {/* Profile list */}
       <Card className="border-border/60 h-fit">
-        <CardHeader className="border-b border-border/60 pb-3">
+        <CardHeader className="border-b border-border/60 pb-3" dir="rtl">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">پروفایل‌ها</CardTitle>
+            <CardTitle className="form-card-title !text-base">پروفایل‌ها</CardTitle>
             <Button size="sm" variant="outline" onClick={handleNew} className="h-7">
               <FilePlus2 className="size-3.5" />
               جدید
             </Button>
           </div>
-          <CardDescription>انتخاب پروفایل برای ویرایش</CardDescription>
+          <CardDescription className="form-card-subtitle !mt-1">انتخاب پروفایل برای ویرایش</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {profileNames.length === 0 && selected !== "__new__" ? (
@@ -214,18 +214,18 @@ export function SettingsTab() {
               هیچ پروفایلی ذخیره نشده.
             </div>
           ) : (
-            <ul className="max-h-[60vh] overflow-y-auto scroll-y-rtl p-1">
+            <ul className="max-h-[60vh] overflow-y-auto scroll-y-rtl p-1.5 space-y-1">
               {selected === "__new__" && draft && (
                 <li>
                   <button
                     onClick={() => setDraft({ ...draft })}
                     className={cn(
-                      "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-right text-sm",
+                      "profile-item w-full",
                       "border border-dashed border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
                     )}
                   >
-                    <span className="truncate">{draft.PROFILE_NAME}</span>
-                    <span className="text-[10px]">جدید</span>
+                    <span className="profile-item-name truncate">{draft.PROFILE_NAME}</span>
+                    <span className="profile-item-meta">جدید · ذخیره نشده</span>
                   </button>
                 </li>
               )}
@@ -237,24 +237,24 @@ export function SettingsTab() {
                     <button
                       onClick={() => setSelected(name)}
                       className={cn(
-                        "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-right text-sm hover:bg-muted/50",
-                        selected === name && "bg-muted"
+                        "profile-item w-full hover:bg-muted/50",
+                        selected === name && "bg-muted border border-border/60"
                       )}
                     >
-                      <div className="flex flex-col items-start gap-0.5 truncate">
-                        <span className="truncate font-medium">{name}</span>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {prof.SYMBOLS.length} نماد · M{prof.TIMEFRAME} · {prof.STRATEGY_MODE.split(" ")[0]}
-                        </span>
+                      <div className="flex w-full items-center justify-between gap-2">
+                        <span className="profile-item-name truncate">{name}</span>
+                        {running ? (
+                          <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold">
+                            <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                            در اجرا
+                          </span>
+                        ) : (
+                          <CircleDot className="size-3 text-muted-foreground" />
+                        )}
                       </div>
-                      {running ? (
-                        <span className="flex items-center gap-1 text-emerald-500">
-                          <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-                          در اجرا
-                        </span>
-                      ) : (
-                        <CircleDot className="size-3.5 text-muted-foreground" />
-                      )}
+                      <span className="profile-item-meta">
+                        {prof.SYMBOLS.length} نماد · M{prof.TIMEFRAME} · {prof.STRATEGY_MODE.split(" ")[0]}
+                      </span>
                     </button>
                   </li>
                 );
@@ -268,124 +268,132 @@ export function SettingsTab() {
       <div className="flex flex-col gap-3">
         {/* Action bar */}
         <Card className="border-border/60">
-          <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3">
-            <div className="flex items-center gap-2">
-              {draft && (
-                <Input
-                  value={draft.PROFILE_NAME}
-                  onChange={(e) =>
-                    setDraft((d) => (d ? { ...d, PROFILE_NAME: e.target.value } : d))
-                  }
-                  className="h-9 w-56 font-mono text-sm text-right"
-                  placeholder="نام پروفایل"
-                  dir="rtl"
-                />
-              )}
-              {isRunning && (
-                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-500">
-                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-                  در حال اجرا
-                </Badge>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Duplicate */}
-              <Sheet open={dupOpen} onOpenChange={setDupOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!selected || selected === "__new__"}
-                  >
-                    <Copy className="size-3.5" />
-                    کپی
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left">
-                  <SheetHeader>
-                    <SheetTitle>کپی پروفایل</SheetTitle>
-                    <SheetDescription>
-                      یک کپی از «{selected}» با نام جدید بسازید.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <div className="p-4">
-                    <Input
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="نام جدید"
-                      dir="rtl"
-                      className="font-mono text-right"
-                    />
-                  </div>
-                  <SheetFooter>
-                    <Button onClick={() => handleDuplicate(newName)} size="sm">
-                      ایجاد کپی
-                    </Button>
-                  </SheetFooter>
-                </SheetContent>
-              </Sheet>
+          <CardContent className="py-3" dir="rtl">
+            <div className="action-bar justify-between">
+              <div className="flex items-center gap-2">
+                {draft && (
+                  <Input
+                    value={draft.PROFILE_NAME}
+                    onChange={(e) =>
+                      setDraft((d) => (d ? { ...d, PROFILE_NAME: e.target.value } : d))
+                    }
+                    className="h-9 w-56 font-mono text-sm text-right"
+                    placeholder="نام پروفایل"
+                    dir="rtl"
+                  />
+                )}
+                {isRunning && (
+                  <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-500">
+                    <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                    در حال اجرا
+                  </Badge>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Profile management group */}
+                <div className="action-bar-group">
+                  <Sheet open={dupOpen} onOpenChange={setDupOpen}>
+                    <SheetTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={!selected || selected === "__new__"}
+                      >
+                        <Copy className="size-3.5" />
+                        کپی
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left">
+                      <SheetHeader>
+                        <SheetTitle>کپی پروفایل</SheetTitle>
+                        <SheetDescription>
+                          یک کپی از «{selected}» با نام جدید بسازید.
+                        </SheetDescription>
+                      </SheetHeader>
+                      <div className="p-4">
+                        <Input
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          placeholder="نام جدید"
+                          dir="rtl"
+                          className="font-mono text-right"
+                        />
+                      </div>
+                      <SheetFooter>
+                        <Button onClick={() => handleDuplicate(newName)} size="sm">
+                          ایجاد کپی
+                        </Button>
+                      </SheetFooter>
+                    </SheetContent>
+                  </Sheet>
 
-              {/* Delete */}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-rose-500 hover:bg-rose-500/10 hover:text-rose-500"
+                        disabled={!selected || selected === "__new__"}
+                      >
+                        <Trash2 className="size-3.5" />
+                        حذف
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>حذف پروفایل</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          آیا از حذف پروفایل «{selected}» مطمئن هستید؟ این عمل قابل بازگشت نیست.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>انصراف</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          className="bg-rose-500 hover:bg-rose-600 text-white"
+                        >
+                          حذف کن
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                  <Button size="sm" variant="ghost" onClick={() => qc.invalidateQueries({ queryKey: ["profiles"] })} aria-label="بازخوانی">
+                    <RefreshCw className="size-3.5" />
+                  </Button>
+                </div>
+
+                <div className="action-bar-separator" />
+
+                {/* Save + execution group */}
+                <div className="action-bar-group action-bar-group--primary">
+                  <Button size="sm" variant="default" onClick={handleSave} disabled={saving || !draft}>
+                    <Save className="size-3.5" />
+                    {saving ? "در حال ذخیره…" : "ذخیره"}
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={handleStart}
+                    disabled={!draft || isRunning}
+                    className="border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10"
+                  >
+                    <Play className="size-3.5" />
+                    شروع
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleStop}
+                    disabled={!isRunning}
                     className="border-rose-500/40 text-rose-500 hover:bg-rose-500/10"
-                    disabled={!selected || selected === "__new__"}
                   >
-                    <Trash2 className="size-3.5" />
-                    حذف
+                    <Square className="size-3.5" />
+                    توقف
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>حذف پروفایل</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      آیا از حذف پروفایل «{selected}» مطمئن هستید؟ این عمل قابل بازگشت نیست.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>انصراف</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDelete}
-                      className="bg-rose-500 hover:bg-rose-600 text-white"
-                    >
-                      حذف کن
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
-              <Button size="sm" variant="secondary" onClick={() => qc.invalidateQueries({ queryKey: ["profiles"] })}>
-                <RefreshCw className="size-3.5" />
-              </Button>
-
-              <Button size="sm" variant="default" onClick={handleSave} disabled={saving || !draft}>
-                <Save className="size-3.5" />
-                {saving ? "در حال ذخیره…" : "ذخیره"}
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleStart}
-                disabled={!draft || isRunning}
-                className="border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10"
-              >
-                <Play className="size-3.5" />
-                شروع اجرا
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleStop}
-                disabled={!isRunning}
-                className="border-rose-500/40 text-rose-500 hover:bg-rose-500/10"
-              >
-                <Square className="size-3.5" />
-                توقف
-              </Button>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -402,7 +410,7 @@ export function SettingsTab() {
 
         {/* Saved status */}
         {draft && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground" dir="rtl">
             <CheckCircle2 className="size-3.5 text-emerald-500" />
             <span>
               Magic: <span className="font-mono">{draft.MAGIC_NUMBER}</span>

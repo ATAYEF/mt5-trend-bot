@@ -28,8 +28,8 @@ export function NumberField({
   className,
 }: NumberFieldProps) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label className="text-xs font-medium text-foreground/90">{label}</Label>
+    <div className={cn("flex flex-col gap-1", className)}>
+      <Label className="form-field-label">{label}</Label>
       <div className="flex items-center gap-2">
         <Input
           type="number"
@@ -51,7 +51,7 @@ export function NumberField({
         )}
       </div>
       {description && (
-        <p className="text-[11px] text-muted-foreground leading-snug">
+        <p className="form-field-desc">
           {description}
         </p>
       )}
