@@ -1,0 +1,40 @@
+"use client";
+import * as React from "react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+
+interface SwitchFieldProps {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  description?: string;
+  className?: string;
+}
+
+export function SwitchField({
+  label,
+  checked,
+  onChange,
+  description,
+  className,
+}: SwitchFieldProps) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/40 p-3",
+        className
+      )}
+    >
+      <div className="flex flex-col gap-0.5">
+        <Label className="text-xs font-medium text-foreground/90">{label}</Label>
+        {description && (
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            {description}
+          </p>
+        )}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} dir="ltr" />
+    </div>
+  );
+}
