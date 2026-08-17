@@ -430,7 +430,12 @@ export const DASHBOARD_STATS: DashboardStats = {
   equity: 10623.45,
   currency: "USD",
   running_bots_count: 2,
+  // Count of profiles that have ≥1 open position (in the static snapshot,
+  // 2 profiles — TrendFollow-Conservative and Scalp-Aggressive — have positions)
+  profiles_with_open_positions: 2,
   open_positions_count: OPEN_POSITIONS.length,
+  // Sum of unrealized P&L across all open positions in the static snapshot
+  total_unrealized_pnl: OPEN_POSITIONS.reduce((sum, p) => sum + p.profit, 0),
   daily_pnl: 123.45,
   mt5_connected: true,
   account_login: 5003330711,

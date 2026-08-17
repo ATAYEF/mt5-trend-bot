@@ -254,22 +254,50 @@ export const api = {
   async getDashboardStats(): Promise<DashboardStats> {
     if (IS_MOCK) {
       await delay(160);
-      // Reflect the number of running bots from the bot store, not the static snapshot
+      // Pull the live bot state so starting/stopping a bot reflects in the
+      // header stats immediately on the next poll.
       const statusMap = botStore.statusMap();
-      const runningBots = Object.values(statusMap).filter((b) => b.is_running);
+      const allStatuses = Object.values(statusMap);
+
+      // Running bots (is_running === true)
+      const runningBots = allStatuses.filter((b) => b.is_running);
+
+      // Profiles that actually have ≥1 open position — distinct from
+      // running bots because a stopped bot may still hold positions (or
+      // vice-versa, a running bot may have no positions yet).
+      const profilesByPosition: Record<string, typeof runningBots[number][]> = {};
+      for (const s of allStatuses) {
+        if ((s.open_positions ?? []).length > 0) {
+          const key = s.profile_name ?? "(unnamed)";
+          if (!profilesByPosition[key]) profilesByPosition[key] = [];
+          profilesByPosition[key].push(s);
+        }
+      }
+      const profilesWithOpenPositions = Object.keys(profilesByPosition).length;
+
+      // Sum of all open positions across all profiles
       const allOpenPositions = runningBots.flatMap((b) => b.open_positions ?? []);
-      const totalProfit = allOpenPositions.reduce((s, p) => s + (p.profit ?? 0), 0);
+      const totalUnrealizedPnl = allOpenPositions.reduce(
+        (sum, p) => sum + (p.profit ?? 0),
+        0
+      );
+
       const baseBalance = DASHBOARD_STATS.balance;
-      const equity = Number((baseBalance + totalProfit + (Math.random() - 0.5) * 5).toFixed(2));
-      const dailyPnl = Number((totalProfit + (Math.random() - 0.5) * 8).toFixed(2));
+      const equity = Number(
+        (baseBalance + totalUnrealizedPnl + (Math.random() - 0.5) * 3).toFixed(2)
+      );
+
       return {
         ...DASHBOARD_STATS,
         running_bots_count: runningBots.length,
+        profiles_with_open_positions: profilesWithOpenPositions,
         open_positions_count: allOpenPositions.length,
+        total_unrealized_pnl: Number(totalUnrealizedPnl.toFixed(2)),
+        // Daily P&L = unrealized P&L from open positions (in mock world this is the live number)
+        daily_pnl: Number(totalUnrealizedPnl.toFixed(2)),
         equity,
-        daily_pnl: dailyPnl,
-        // MT5 connected if at least one bot is running
-        mt5_connected: runningBots.length > 0,
+        // MT5 is considered connected if at least one bot is running AND connected
+        mt5_connected: runningBots.some((b) => b.connected),
       };
     }
     return realFetch<DashboardStats>("/api/dashboard/stats");

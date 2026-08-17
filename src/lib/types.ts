@@ -238,8 +238,15 @@ export interface DashboardStats {
   balance: number;
   equity: number;
   currency: string;
+  /** Number of profiles whose bot is currently running. */
   running_bots_count: number;
+  /** Number of distinct profiles that currently have ≥1 open position. */
+  profiles_with_open_positions: number;
+  /** Total count of open positions across all profiles. */
   open_positions_count: number;
+  /** Sum of unrealized P&L across all open positions of all profiles. */
+  total_unrealized_pnl: number;
+  /** Daily realized + unrealized P&L (legacy field, kept for backward compat). */
   daily_pnl: number;
   mt5_connected: boolean;
   account_login?: number;

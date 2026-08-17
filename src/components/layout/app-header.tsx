@@ -20,17 +20,19 @@ export function AppHeader() {
   });
 
   const connected = stats?.mt5_connected ?? true;
-  const activeBots = stats?.running_bots_count ?? 0;
-  const dailyPnl = stats?.daily_pnl ?? 0;
+  // Count of profiles that currently have ≥1 open position (across all bots).
+  const profilesWithPositions = stats?.profiles_with_open_positions ?? 0;
+  // Sum of unrealized P&L across all open positions of all profiles.
+  const totalPnl = stats?.total_unrealized_pnl ?? 0;
   const currency = stats?.currency ?? "USD";
 
   // Sign-aware styling
   const pnlSign: "positive" | "negative" | "zero" =
-    dailyPnl > 0 ? "positive" : dailyPnl < 0 ? "negative" : "zero";
+    totalPnl > 0 ? "positive" : totalPnl < 0 ? "negative" : "zero";
 
   // Compact money format — 1 decimal max, $ prefix when USD
   const pnlDisplay = (() => {
-    const abs = Math.abs(dailyPnl);
+    const abs = Math.abs(totalPnl);
     const val = abs >= 1000 ? abs.toFixed(0) : abs.toFixed(1);
     return currency === "USD" ? `$${val}` : `${val} ${currency}`;
   })();
@@ -55,18 +57,18 @@ export function AppHeader() {
 
         {/* Left side — header metrics + status badges + theme toggle */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Active bots count */}
-          <span className="header-stat header-stat--bots" title="تعداد پروفایل‌های فعال">
+          {/* Profiles with open positions count */}
+          <span className="header-stat header-stat--bots" title="تعداد پروفایل‌هایی که پوزیشن باز دارند">
             <Bot className="size-3.5" />
-            <span className="header-stat-label hidden sm:inline">پروفایل فعال</span>
-            <span className="header-stat-label sm:hidden">فعال</span>
-            <span className="header-stat-value">{activeBots}</span>
+            <span className="header-stat-label hidden sm:inline">پروفایل با پوزیشن</span>
+            <span className="header-stat-label sm:hidden">پوزیشن</span>
+            <span className="header-stat-value">{profilesWithPositions}</span>
           </span>
 
-          {/* Total P&L */}
+          {/* Total P&L across all profiles */}
           <span
             className="header-stat header-stat--pnl"
-            title="مجموع سود/زیان روز جاری"
+            title="مجموع سود/زیان کل پوزیشن‌های بازِ همهٔ پروفایل‌ها"
           >
             {pnlSign === "positive" ? (
               <TrendingUp className="size-3.5" />
@@ -75,7 +77,7 @@ export function AppHeader() {
             ) : (
               <Activity className="size-3.5" />
             )}
-            <span className="header-stat-label hidden sm:inline">سود/زیان</span>
+            <span className="header-stat-label hidden sm:inline">سود/زیان کل</span>
             <span className="header-stat-label sm:hidden">P&amp;L</span>
             <span
               className={cn(
