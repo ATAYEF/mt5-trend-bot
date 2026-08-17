@@ -613,6 +613,32 @@ input[type="text"] {
   border: 1px solid var(--form-section-num-border);
   flex-shrink: 0;
 }
+/* Accordion section icon (lucide icon next to the section number) */
+.form-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 6px;
+  background: var(--form-section-icon-bg);
+  color: var(--form-section-icon-fg);
+  border: 1px solid var(--form-section-icon-border);
+  flex-shrink: 0;
+}
+
+/* Theme-aware tokens for the section icon (added to :root and .dark) */
+:root {
+  --form-section-icon-bg: oklch(0.94 0.01 220);
+  --form-section-icon-fg: oklch(0.32 0.02 240);
+  --form-section-icon-border: oklch(0.82 0.01 240 / 60%);
+}
+.dark {
+  --form-section-icon-bg: oklch(0.3 0.015 240);
+  --form-section-icon-fg: oklch(0.85 0.02 220);
+  --form-section-icon-border: oklch(0.45 0.02 240 / 40%);
+}
+
 /* Accordion trigger — title row */
 [data-slot="accordion-trigger"] .form-section-title {
   font-size: 0.95rem;
@@ -675,6 +701,11 @@ input[type="text"] {
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-top: 1rem;
+}
+/* Inline variant — placed inside the card header (no top margin, tighter padding) */
+.form-preset-section--inline {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
 }
 .form-preset-label {
   font-size: 0.7rem;

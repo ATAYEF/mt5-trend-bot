@@ -8,7 +8,21 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Play, Square, Save, Sparkles, Hash, Wallet } from "lucide-react";
+import {
+  Sparkles,
+  Hash,
+  Wallet,
+  Cable,
+  CandlestickChart,
+  Gauge,
+  Waves,
+  LogOut,
+  Shield,
+  TrendingUp,
+  DoorOpen,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -51,25 +65,26 @@ function Section({
 }
 
 // ----------------------------------------------------------------------------
-// Section definition data — title + subtitle for each accordion section
+// Section definition data — title + subtitle + icon for each accordion section
 // ----------------------------------------------------------------------------
 interface SectionDef {
   num: string;
   value: string;
   title: string;
   subtitle: string;
+  icon: LucideIcon;
 }
 
 const SECTIONS: SectionDef[] = [
-  { num: "۱", value: "mt5",         title: "اتصال MT5",                   subtitle: "اطلاعات حساب و سرور MetaTrader 5" },
-  { num: "۲", value: "sym",         title: "نمادها و تایمفریم",          subtitle: "انتخاب نمادهای معاملاتی و بازهٔ زمانی" },
-  { num: "۳", value: "regime",      title: "فیلتر رژیم بازار",            subtitle: "تشخیص روند در برابر رنج برای حالت خودکار" },
-  { num: "۴", value: "scalp-entry", title: "ورود اسکلپ (Mean Reversion)", subtitle: "شرط‌های ورود بر اساس باند بولینگر و RSI" },
-  { num: "۵", value: "scalp-exit",  title: "خروج اسکلپ",                  subtitle: "تنظیمات حد ضرر/سود، ساختار و فیلتر سشن" },
-  { num: "۶", value: "risk",        title: "مدیریت ریسک",                 subtitle: "حجم معامله، حد ضرر و حد سود" },
-  { num: "۷", value: "trend-entry", title: "ورود روند (Trend Following)", subtitle: "آستانه ADX، cooldown، تأیید HTF" },
-  { num: "۸", value: "exit",        title: "خروج",                        subtitle: "Trailing Stop، مدت معامله، تعطیلی آخر هفته" },
-  { num: "۹", value: "misc",        title: "متفرقه",                      subtitle: "تنظیمات عمومی پروفایل و Magic Number" },
+  { num: "۱", value: "mt5",         title: "اتصال MT5",                   subtitle: "اطلاعات حساب و سرور MetaTrader 5",            icon: Cable },
+  { num: "۲", value: "sym",         title: "نمادها و تایم فریم",          subtitle: "انتخاب نمادهای معاملاتی و بازهٔ زمانی",      icon: CandlestickChart },
+  { num: "۳", value: "regime",      title: "فیلتر رژیم بازار",            subtitle: "تشخیص روند در برابر رنج برای حالت خودکار",   icon: Gauge },
+  { num: "۴", value: "scalp-entry", title: "ورود اسکلپ (Mean Reversion)", subtitle: "شرط‌های ورود بر اساس باند بولینگر و RSI",     icon: Waves },
+  { num: "۵", value: "scalp-exit",  title: "خروج اسکلپ",                  subtitle: "تنظیمات حد ضرر/سود، ساختار و فیلتر سشن",      icon: LogOut },
+  { num: "۶", value: "risk",        title: "مدیریت ریسک",                 subtitle: "حجم معامله، حد ضرر و حد سود",                 icon: Shield },
+  { num: "۷", value: "trend-entry", title: "ورود روند (Trend Following)", subtitle: "آستانه ADX، cooldown، تأیید HTF",            icon: TrendingUp },
+  { num: "۸", value: "exit",        title: "خروج",                        subtitle: "Trailing Stop، مدت معامله، تعطیلی آخر هفته", icon: DoorOpen },
+  { num: "۹", value: "misc",        title: "ایمنی معاملات",               subtitle: "فقط حساب دمو، پروفایل و Magic Number",        icon: ShieldCheck },
 ];
 
 export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
@@ -300,6 +315,7 @@ export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
   return (
     <Card className="form-card">
       <CardHeader dir="rtl">
+        {/* Row 1 — title + meta badges */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col">
             <span className="form-card-title">پیکربندی ربات</span>
@@ -322,33 +338,16 @@ export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
             )}
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="pt-2" dir="rtl">
-        <Accordion type="multiple" defaultValue={["mt5", "sym"]} className="w-full">
-          {SECTIONS.map((s) => (
-            <AccordionItem key={s.value} value={s.value}>
-              <AccordionTrigger className="hover:bg-muted/40 px-3 rounded-md gap-3">
-                <span className="form-section-num">{s.num}</span>
-                <span className="flex flex-col items-start">
-                  <span className="form-section-title">{s.title}</span>
-                  <span className="form-section-subtitle">{s.subtitle}</span>
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="px-3 pt-4">
-                {sectionContent[s.value]}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-
-        {/* Risk Profile Apply button row */}
-        <div className="form-preset-section" dir="rtl">
+        {/* Row 2 — quick risk preset (moved here for fast access) */}
+        <div className="form-preset-section form-preset-section--inline" dir="rtl">
           <div className="flex flex-wrap items-center gap-3">
-            <Sparkles className="size-4 text-emerald-500" />
-            <div className="flex flex-col">
+            <Sparkles className="size-4 text-emerald-500 shrink-0" />
+            <div className="flex flex-col shrink-0">
               <span className="form-preset-label">اعمال سریع Preset ریسک</span>
-              <span className="text-[10px] text-muted-foreground">یک کلیک برای تنظیم فیلدهای کلیدی ریسک</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:block">
+                یک کلیک برای تنظیم فیلدهای کلیدی ریسک
+              </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 mr-auto">
               {riskProfileOptions.map((o) => (
@@ -370,6 +369,31 @@ export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
             </div>
           </div>
         </div>
+      </CardHeader>
+
+      <CardContent className="pt-2" dir="rtl">
+        <Accordion type="multiple" defaultValue={[]} className="w-full">
+          {SECTIONS.map((s) => {
+            const Icon = s.icon;
+            return (
+              <AccordionItem key={s.value} value={s.value}>
+                <AccordionTrigger className="hover:bg-muted/40 px-3 rounded-md gap-3">
+                  <span className="form-section-num">{s.num}</span>
+                  <span className="form-section-icon">
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="flex flex-col items-start">
+                    <span className="form-section-title">{s.title}</span>
+                    <span className="form-section-subtitle">{s.subtitle}</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-3 pt-4">
+                  {sectionContent[s.value]}
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
       </CardContent>
     </Card>
   );
