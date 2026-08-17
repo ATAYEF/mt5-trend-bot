@@ -76,8 +76,14 @@ export const profileStore = new ProfileStore();
 // Bot running state (mock)
 // ----------------------------------------------------------------------------
 
+import { BOT_STATUSES } from "./mock-data";
+
 class BotStore {
-  private running: Set<string> = new Set(["TrendFollow-Conservative", "Scalp-Aggressive"]);
+  // Names of currently running bots (mock state, can be modified by start/stop)
+  private running: Set<string> = new Set([
+    "TrendFollow-Conservative",
+    "Scalp-Aggressive",
+  ]);
 
   start(name: string): { ok: boolean; already_running: boolean } {
     if (this.running.has(name)) {
@@ -93,6 +99,72 @@ class BotStore {
 
   isRunning(name: string): boolean {
     return this.running.has(name);
+  }
+
+  /**
+   * Build the full bot-status map by merging the static BOT_STATUSES
+   * snapshot with the live running/not-running state. When a bot is
+   * not running, we mark `is_running=false` and `connected=false` and
+   * empty out `open_positions` so the UI reflects reality.
+   */
+  statusMap(): Record<string, import("./types").BotStatus> {
+    const out: Record<string, import("./types").BotStatus> = {};
+    for (const [name, base] of Object.entries(BOT_STATUSES)) {
+      const running = this.running.has(name);
+      if (running) {
+        out[name] = { ...base, is_running: true, connected: true };
+      } else {
+        out[name] = {
+          ...base,
+          is_running: false,
+          connected: false,
+          open_positions: [],
+          bot_open_trades_count: 0,
+          open_risk_percent: 0,
+          daily_loss_triggered: false,
+        };
+      }
+    }
+    return out;
+  }
+
+  /**
+   * For an ad-hoc profile (one that isn't in BOT_STATUSES), return a
+   * minimal status object so the UI can show a "running" pill after
+   * the user starts a brand-new profile.
+   */
+  statusFor(name: string, config?: import("./types").BotConfig): import("./types").BotStatus | null {
+    if (!this.running.has(name)) {
+      // Not running — if it's a known profile, fall back to statusMap
+      const map = this.statusMap();
+      return map[name] ?? null;
+    }
+    // Running — if known, use static snapshot; otherwise synthesize one
+    const base = BOT_STATUSES[name];
+    if (base) {
+      return { ...base, is_running: true, connected: true };
+    }
+    return {
+      connected: true,
+      is_running: true,
+      profile_name: name,
+      magic_number: config?.MAGIC_NUMBER ?? 0,
+      balance: config?.INITIAL_BALANCE ?? 10000,
+      equity: config?.INITIAL_BALANCE ?? 10000,
+      currency: "USD",
+      account_leverage: 100,
+      open_positions: [],
+      rejected_signals_total: 0,
+      rejected_signals_by_symbol: {},
+      rejected_signals_by_code: {},
+      last_rejection: {},
+      symbol_states: {},
+      symbol_issues: {},
+      configured_symbols: config?.SYMBOLS ?? [],
+      bot_open_trades_count: 0,
+      open_risk_percent: 0,
+      daily_loss_triggered: false,
+    };
   }
 }
 

@@ -5,10 +5,8 @@
 import {
   AI_ENGINE_STATUS,
   BACKTEST_RESULT,
-  BOT_STATUSES,
   DASHBOARD_STATS,
   DEFAULT_CONFIG,
-  GROUPED_POSITIONS_CLEAN,
   HEALTH,
   META,
   makeLogResponse,
@@ -170,7 +168,8 @@ export const api = {
   async getBotStatus(): Promise<{ bots: Record<string, BotStatus> }> {
     if (IS_MOCK) {
       await delay(180);
-      return { bots: { ...BOT_STATUSES } };
+      // Reflect live bot running/not-running state, not the static snapshot
+      return { bots: botStore.statusMap() };
     }
     return realFetch<{ bots: Record<string, BotStatus> }>("/api/bot/status");
   },
@@ -255,10 +254,23 @@ export const api = {
   async getDashboardStats(): Promise<DashboardStats> {
     if (IS_MOCK) {
       await delay(160);
-      // Return slightly varying stats so refetchInterval shows life
-      const equity = Number((DASHBOARD_STATS.equity + (Math.random() - 0.5) * 5).toFixed(2));
-      const dailyPnl = Number((DASHBOARD_STATS.daily_pnl + (Math.random() - 0.5) * 8).toFixed(2));
-      return { ...DASHBOARD_STATS, equity, daily_pnl: dailyPnl };
+      // Reflect the number of running bots from the bot store, not the static snapshot
+      const statusMap = botStore.statusMap();
+      const runningBots = Object.values(statusMap).filter((b) => b.is_running);
+      const allOpenPositions = runningBots.flatMap((b) => b.open_positions ?? []);
+      const totalProfit = allOpenPositions.reduce((s, p) => s + (p.profit ?? 0), 0);
+      const baseBalance = DASHBOARD_STATS.balance;
+      const equity = Number((baseBalance + totalProfit + (Math.random() - 0.5) * 5).toFixed(2));
+      const dailyPnl = Number((totalProfit + (Math.random() - 0.5) * 8).toFixed(2));
+      return {
+        ...DASHBOARD_STATS,
+        running_bots_count: runningBots.length,
+        open_positions_count: allOpenPositions.length,
+        equity,
+        daily_pnl: dailyPnl,
+        // MT5 connected if at least one bot is running
+        mt5_connected: runningBots.length > 0,
+      };
     }
     return realFetch<DashboardStats>("/api/dashboard/stats");
   },
@@ -267,7 +279,22 @@ export const api = {
   async getPositionsGrouped(): Promise<GroupedPositions> {
     if (IS_MOCK) {
       await delay(180);
-      return GROUPED_POSITIONS_CLEAN;
+      // Rebuild the grouped positions map from the live bot status so
+      // stopped bots don't show any open positions.
+      const statusMap = botStore.statusMap();
+      const out: GroupedPositions = {};
+      for (const [name, status] of Object.entries(statusMap)) {
+        if (!status.is_running) continue;
+        const positions = status.open_positions ?? [];
+        if (positions.length === 0) continue;
+        const bySymbol: Record<string, typeof positions> = {};
+        for (const p of positions) {
+          if (!bySymbol[p.symbol]) bySymbol[p.symbol] = [];
+          bySymbol[p.symbol].push(p);
+        }
+        out[name] = bySymbol;
+      }
+      return out;
     }
     return realFetch<GroupedPositions>("/api/positions/grouped");
   },
