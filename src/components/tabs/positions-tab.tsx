@@ -212,7 +212,7 @@ function SymbolTable({
         </TableBody>
         <TableFooter>
           <TableRow>
-            <TableCell colSpan={7} className="text-left text-xs text-muted-foreground">
+            <TableCell colSpan={7} className="text-right text-xs text-muted-foreground">
               مجموع سود این نماد:
             </TableCell>
             <TableCell className={cn("font-mono font-medium", pnlColor(sumProfit))}>

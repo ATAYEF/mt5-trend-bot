@@ -291,8 +291,8 @@ export function AIEngineTab() {
               onChange={(e) => setBars(parseInt(e.target.value, 10) || 0)}
               min={100}
               max={100000}
-              className="mt-1 font-mono"
-              dir="ltr"
+              className="mt-1 font-mono text-right"
+              dir="rtl"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
               پیشنهادی: ۵٬۰۰۰ تا ۲۰٬۰۰۰ کندل

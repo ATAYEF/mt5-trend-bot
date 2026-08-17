@@ -117,8 +117,8 @@ export function ReportTab() {
                 onChange={(e) => setDays(parseInt(e.target.value, 10) || 30)}
                 min={1}
                 max={3650}
-                className="mt-1"
-                dir="ltr"
+                className="mt-1 text-right"
+                dir="rtl"
               />
             </div>
             <div>
@@ -127,8 +127,8 @@ export function ReportTab() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1"
-                dir="ltr"
+                className="mt-1 text-right"
+                dir="rtl"
               />
             </div>
             <div>
@@ -137,8 +137,8 @@ export function ReportTab() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1"
-                dir="ltr"
+                className="mt-1 text-right"
+                dir="rtl"
               />
             </div>
           </div>

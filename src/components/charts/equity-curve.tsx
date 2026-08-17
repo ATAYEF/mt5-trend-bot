@@ -54,7 +54,7 @@ export function EquityCurve({ trades, startingBalance = 10000 }: EquityCurveProp
   }
 
   return (
-    <div className="h-72 w-full" dir="ltr">
+    <div className="h-72 w-full" data-chart-container dir="ltr">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
           <defs>

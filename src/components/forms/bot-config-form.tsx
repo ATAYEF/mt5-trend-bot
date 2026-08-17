@@ -159,7 +159,6 @@ export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
                   type="password"
                   value={value.MT5_PASSWORD}
                   onChange={(v) => update("MT5_PASSWORD", v)}
-                  ltr
                   mono
                   description="رمز عبور حساب (Investor یا اصلی)"
                 />
@@ -167,7 +166,6 @@ export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
                   label="MT5 Server (سرور)"
                   value={value.MT5_SERVER}
                   onChange={(v) => update("MT5_SERVER", v)}
-                  ltr
                   mono
                   placeholder="MetaQuotes-Demo"
                 />
@@ -175,7 +173,6 @@ export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
                   label="MT5 Path (مسیر اجرا)"
                   value={value.MT5_PATH ?? ""}
                   onChange={(v) => update("MT5_PATH", v || null)}
-                  ltr
                   mono
                   placeholder="خالی = خودکار"
                   description="مسیر فایل terminal64.exe (اختیاری)"
@@ -353,7 +350,7 @@ export function BotConfigForm({ value, onChange }: BotConfigFormProps) {
             <AccordionContent className="px-3">
               <Section title="تنظیمات عمومی پروفایل">
                 <SwitchField label="فقط حساب دمو" checked={value.REQUIRE_DEMO_ACCOUNT} onChange={(v) => update("REQUIRE_DEMO_ACCOUNT", v)} description="جلوگیری از اجرا روی حساب واقعی" className="sm:col-span-2" />
-                <TextField label="نام پروفایل" value={value.PROFILE_NAME} onChange={(v) => update("PROFILE_NAME", v)} ltr mono />
+                <TextField label="نام پروفایل" value={value.PROFILE_NAME} onChange={(v) => update("PROFILE_NAME", v)} mono />
                 <NumberField label="Magic Number" value={value.MAGIC_NUMBER} onChange={(v) => update("MAGIC_NUMBER", v)} description="شناسهٔ یکتای ربات در MT5" />
                 <NumberField label="بالانس اولیه (اختیاری)" value={value.INITIAL_BALANCE ?? 0} onChange={(v) => update("INITIAL_BALANCE", v)} step={100} />
               </Section>

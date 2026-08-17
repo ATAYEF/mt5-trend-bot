@@ -57,7 +57,7 @@ export function ChipInput({
         <Label className="text-xs font-medium text-foreground/90">{label}</Label>
       )}
       <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/40 p-2.5">
-        <div className="flex flex-wrap gap-1.5" dir="ltr">
+        <div className="flex flex-wrap gap-1.5" dir="rtl">
           {values.length === 0 && (
             <span className="text-xs text-muted-foreground px-1 py-0.5">
               هیچ نمادی انتخاب نشده
@@ -87,12 +87,12 @@ export function ChipInput({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKey}
           placeholder={placeholder}
-          dir="ltr"
-          className="font-mono"
+          dir="rtl"
+          className="font-mono text-right"
         />
 
         {available.length > 0 && (
-          <div className="flex flex-wrap gap-1" dir="ltr">
+          <div className="flex flex-wrap gap-1" dir="rtl">
             {available.slice(0, 12).map((s) => (
               <button
                 key={s}

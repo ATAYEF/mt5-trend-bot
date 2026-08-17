@@ -236,8 +236,8 @@ export function BacktestTab() {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="mt-1 w-[160px]"
-                    dir="ltr"
+                    className="mt-1 w-[160px] text-right"
+                    dir="rtl"
                   />
                 </div>
                 <div>
@@ -246,8 +246,8 @@ export function BacktestTab() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="mt-1 w-[160px]"
-                    dir="ltr"
+                    className="mt-1 w-[160px] text-right"
+                    dir="rtl"
                   />
                 </div>
               </>

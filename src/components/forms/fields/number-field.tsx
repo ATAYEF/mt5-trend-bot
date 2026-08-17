@@ -41,8 +41,8 @@ export function NumberField({
             const n = parseFloat(e.target.value);
             onChange(Number.isFinite(n) ? n : 0);
           }}
-          className="font-mono"
-          dir="ltr"
+          className="font-mono text-right"
+          dir="rtl"
         />
         {unit && (
           <span className="text-xs text-muted-foreground whitespace-nowrap">

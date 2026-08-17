@@ -276,9 +276,9 @@ export function SettingsTab() {
                   onChange={(e) =>
                     setDraft((d) => (d ? { ...d, PROFILE_NAME: e.target.value } : d))
                   }
-                  className="h-9 w-56 font-mono text-sm"
+                  className="h-9 w-56 font-mono text-sm text-right"
                   placeholder="نام پروفایل"
-                  dir="ltr"
+                  dir="rtl"
                 />
               )}
               {isRunning && (
@@ -313,8 +313,8 @@ export function SettingsTab() {
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="نام جدید"
-                      dir="ltr"
-                      className="font-mono"
+                      dir="rtl"
+                      className="font-mono text-right"
                     />
                   </div>
                   <SheetFooter>

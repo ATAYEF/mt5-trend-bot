@@ -25,16 +25,17 @@ export function SwitchField({
         "flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/40 p-3",
         className
       )}
+      dir="rtl"
     >
       <div className="flex flex-col gap-0.5">
-        <Label className="text-xs font-medium text-foreground/90">{label}</Label>
+        <Label className="text-xs font-medium text-foreground/90 text-right">{label}</Label>
         {description && (
-          <p className="text-[11px] text-muted-foreground leading-snug">
+          <p className="text-[11px] text-muted-foreground leading-snug text-right">
             {description}
           </p>
         )}
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} dir="ltr" />
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

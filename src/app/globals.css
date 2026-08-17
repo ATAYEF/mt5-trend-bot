@@ -218,3 +218,82 @@
 [data-slot="tabs-list"] {
   flex-wrap: wrap;
 }
+
+/* ===== RTL enforcement for all form elements =====
+   Ensure every input, textarea, select, label, button and chip container
+   inside the app is right-aligned and uses RTL writing direction.
+   The only exception is the log terminal and chart wrappers which keep
+   LTR for technical reasons (log timestamps, chart axis labels).
+*/
+input,
+textarea,
+select,
+label,
+button,
+[role="combobox"],
+[role="option"],
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="select-item"],
+[data-slot="select-value"],
+[data-slot="label"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Placeholders should also start from the right */
+input::placeholder,
+textarea::placeholder {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Number inputs: keep digits readable (Latin) but right-aligned */
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Email / password / paths: keep visual alignment right */
+input[type="password"],
+input[type="email"],
+input[type="text"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Chip/badge containers — right-align chips */
+[data-slot="badge"] {
+  direction: rtl;
+}
+
+/* Table cells & headers — right-align text by default (override per-cell if needed) */
+[data-slot="table-head"],
+[data-slot="table-cell"] {
+  text-align: right;
+}
+
+/* Select dropdown items: right-align text */
+[data-slot="select-item"] [data-slot="select-item-text"],
+[role="option"] {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Form description / help text — right-aligned */
+.form-description {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Exceptions: charts and log terminal keep their own direction */
+.log-terminal,
+[data-chart-container],
+.recharts-wrapper {
+  direction: ltr;
+  text-align: left;
+}
