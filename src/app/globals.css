@@ -290,10 +290,147 @@ input[type="text"] {
   direction: rtl;
 }
 
+/* ===== Section headings & card titles — right-aligned =====
+   Accordion triggers, card titles, section titles and all heading-like
+   spans must be right-aligned in an RTL UI. The shadcn Accordion
+   hard-codes `text-left` on the trigger — override it here.
+*/
+[data-slot="accordion-trigger"] {
+  text-align: right !important;
+  direction: rtl !important;
+}
+[data-slot="accordion-trigger"] > :first-child {
+  margin-left: 0;
+  margin-right: 0;
+}
+[data-slot="accordion-header"] {
+  direction: rtl;
+}
+/* Rotate chevron direction so it visually opens "downward" still works in RTL */
+[data-slot="accordion-trigger"][data-state="open"] > svg {
+  transform: rotate(-180deg);
+}
+
+/* Card header & titles — right-aligned */
+[data-slot="card-header"],
+[data-slot="card-title"],
+[data-slot="card-description"] {
+  text-align: right;
+  direction: rtl;
+}
+
+/* All h1-h6, span/section titles inside cards — right-aligned by default */
+[data-slot="card"] h1,
+[data-slot="card"] h2,
+[data-slot="card"] h3,
+[data-slot="card"] h4,
+[data-slot="card"] h5,
+[data-slot="card"] h6,
+[data-slot="card-content"] h1,
+[data-slot="card-content"] h2,
+[data-slot="card-content"] h3,
+[data-slot="card-content"] h4,
+[data-slot="card-content"] h5,
+[data-slot="card-content"] h6 {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Dialog / Sheet headers — right-aligned */
+[data-slot="dialog-header"],
+[data-slot="dialog-title"],
+[data-slot="dialog-description"],
+[data-slot="sheet-header"],
+[data-slot="sheet-title"],
+[data-slot="sheet-description"] {
+  text-align: right;
+  direction: rtl;
+}
+
 /* Exceptions: charts and log terminal keep their own direction */
 .log-terminal,
 [data-chart-container],
 .recharts-wrapper {
   direction: ltr;
   text-align: left;
+}
+
+/* ===== Log table styling (RTL) ===== */
+.log-table {
+  direction: rtl;
+}
+.log-table [data-slot="table-head"] {
+  background: oklch(0.245 0.013 240 / 70%);
+  color: oklch(0.78 0.02 220);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-align: right;
+  direction: rtl;
+}
+.log-table [data-slot="table-cell"] {
+  padding: 0.4rem 0.75rem;
+  font-size: 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid oklch(1 0 0 / 5%);
+  vertical-align: top;
+  text-align: right;
+  direction: rtl;
+}
+.log-table [data-slot="table-row"]:hover [data-slot="table-cell"] {
+  background: oklch(1 0 0 / 4%);
+}
+.log-table-num {
+  color: oklch(0.5 0.01 240);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  user-select: none;
+  text-align: left;
+  direction: ltr;
+}
+.log-table-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: oklch(0.7 0.01 220);
+  white-space: nowrap;
+  text-align: left;
+  direction: ltr;
+}
+.log-table-message {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-word;
+  white-space: pre-wrap;
+  direction: rtl;
+  text-align: right;
+}
+
+/* Level badge colors */
+.log-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  direction: ltr;
+}
+.log-badge-info  { background: oklch(0.32 0.05 165 / 30%); color: oklch(0.82 0.13 165); border: 1px solid oklch(0.6 0.13 165 / 40%); }
+.log-badge-warn  { background: oklch(0.35 0.06 70 / 30%); color: oklch(0.85 0.13 70);  border: 1px solid oklch(0.65 0.13 70 / 45%); }
+.log-badge-error { background: oklch(0.32 0.08 16 / 30%); color: oklch(0.82 0.16 16);  border: 1px solid oklch(0.65 0.18 16 / 50%); }
+.log-badge-debug { background: oklch(0.32 0.01 240 / 30%); color: oklch(0.72 0.02 240); border: 1px solid oklch(0.55 0.01 240 / 50%); }
+
+/* Level filter pill button (toggle group items get this class) */
+.log-filter-pill {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  direction: ltr;
 }
