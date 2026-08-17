@@ -81,7 +81,7 @@ function levelBadgeClass(level: LogEntry["level"]): string {
     case "DEBUG":
       return "log-badge-debug";
     default:
-      return "log-badge-debug";
+      return "log-badge-other";
   }
 }
 
@@ -92,7 +92,7 @@ function levelBadgeClass(level: LogEntry["level"]): string {
 export function LogTab() {
   const [rawLines, setRawLines] = React.useState<string[]>([]);
   const sinceRef = React.useRef(0);
-  const [atBottom, setAtBottom] = React.useState(true);
+  const [atTop, setAtTop] = React.useState(true);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
   // Filters
@@ -120,9 +120,11 @@ export function LogTab() {
     sinceRef.current = data.next;
   }, [data]);
 
-  // Parse all raw lines into LogEntry[]
+  // Parse all raw lines into LogEntry[] — newest first (descending index)
   const entries: LogEntry[] = React.useMemo(() => {
-    return rawLines.map((line, i) => parseLine(line, i + 1));
+    const parsed = rawLines.map((line, i) => parseLine(line, i + 1));
+    // Reverse so the newest (last appended) appears at the top
+    return parsed.reverse();
   }, [rawLines]);
 
   // Apply filters
@@ -153,30 +155,30 @@ export function LogTab() {
     return counts;
   }, [entries]);
 
-  // Auto-scroll to bottom when new entries arrive if user is at bottom
+  // Auto-scroll to TOP when new entries arrive (since newest is at top)
   React.useEffect(() => {
     if (!containerRef.current) return;
-    if (atBottom) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    if (atTop) {
+      containerRef.current.scrollTop = 0;
     }
-  }, [filtered, atBottom]);
+  }, [filtered, atTop]);
 
   function onScroll() {
     if (!containerRef.current) return;
     const el = containerRef.current;
-    const isBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-    setAtBottom(isBottom);
+    // "at top" = user is viewing the newest entries
+    const isTop = el.scrollTop < 40;
+    setAtTop(isTop);
   }
 
   function clear() {
     setRawLines([]);
   }
 
-  function scrollToBottom() {
+  function scrollToTop() {
     if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-      setAtBottom(true);
+      containerRef.current.scrollTop = 0;
+      setAtTop(true);
     }
   }
 
@@ -313,12 +315,12 @@ export function LogTab() {
               </div>
             ) : (
               <Table dir="rtl">
-                <TableHeader dir="rtl">
-                  <TableRow>
-                    <TableHead className="w-[60px] text-center">ردیف</TableHead>
-                    <TableHead className="w-[160px]">زمان</TableHead>
-                    <TableHead className="w-[80px]">سطح</TableHead>
-                    <TableHead>پیام</TableHead>
+                <TableHeader dir="rtl" className="sticky top-0 z-20">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[64px] text-center font-bold">ردیف</TableHead>
+                    <TableHead className="w-[170px] font-bold">زمان</TableHead>
+                    <TableHead className="w-[90px] text-center font-bold">سطح</TableHead>
+                    <TableHead className="font-bold">پیام</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -330,7 +332,7 @@ export function LogTab() {
                       <TableCell className="log-table-time">
                         {entry.timestamp ?? "—"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         <span
                           className={cn(
                             "log-badge",
@@ -350,11 +352,11 @@ export function LogTab() {
             )}
           </div>
 
-          {!atBottom && filtered.length > 0 && (
+          {!atTop && filtered.length > 0 && (
             <div className="mt-2 flex justify-center" dir="rtl">
-              <Button size="sm" variant="outline" onClick={scrollToBottom}>
-                <ChevronDown className="size-3.5" />
-                رفتن به آخر
+              <Button size="sm" variant="outline" onClick={scrollToTop}>
+                <ChevronDown className="size-3.5 rotate-180" />
+                رفتن به جدیدترین
               </Button>
             </div>
           )}

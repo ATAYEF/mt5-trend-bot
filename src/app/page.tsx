@@ -50,16 +50,18 @@ export default function Home() {
       <AppHeader />
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-3 py-4 sm:px-6 sm:py-6">
-        <Tabs value={active} onValueChange={setActive} className="gap-3">
+        <Tabs value={active} onValueChange={setActive} className="gap-3" dir="rtl">
           <TabsList
             aria-label="زبانه‌های اصلی"
-            className="flex h-auto w-full flex-wrap justify-start gap-1 bg-card/60 p-1.5 rounded-xl border border-border/60"
+            dir="rtl"
+            className="flex h-auto w-full flex-row flex-wrap justify-end gap-1 rounded-xl border border-border/60 bg-card/60 p-1.5"
           >
             {TABS.map((t) => (
               <TabsTrigger
                 key={t.value}
                 value={t.value}
-                className="h-9 gap-1.5 px-3 text-xs sm:text-sm"
+                dir="rtl"
+                className="h-9 gap-1.5 px-3 text-xs sm:text-sm flex-row"
               >
                 {t.icon}
                 <span>{t.label}</span>
