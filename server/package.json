@@ -1,0 +1,23 @@
+{
+  "name": "trendpilot-server",
+  "version": "1.0.0",
+  "description": "TrendPilot backend server — indicator/signal/risk/backtest/AI engine + REST API for the MT5 bridge and the web UI.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "tsx src/tests/run-all.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.1.0",
+    "@fastify/cors": "^10.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "tsx": "^4.19.2",
+    "@types/node": "^22.9.0"
+  }
+}
