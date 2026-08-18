@@ -1,12 +1,14 @@
 // ============================================================
 // نقطه‌ی ورود سرور — Fastify + CORS
-// طبق اصل طراحی سند: «سرور بتواند روی هر هاستی (حتی سرور ابری
-// لینوکسی معمولی) میزبانی شود» — بدون هیچ وابستگی سیستمی خاص.
+//
+// نسبت به نسخه‌ی قبلی: import و فراخوانی warmupProfilesFromDisk از
+// live/bot-manager.ts حذف شد — آن ماژول به‌همراه کل موتور معاملاتی
+// TS (indicators/signals/risk/engine/backtest/ai) دیگر لازم نیست و
+// می‌تواند حذف شود؛ سرور دیگر خودش هیچ ربات یا تحلیلی اجرا نمی‌کند.
 // ============================================================
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { registerRoutes } from "./api/routes.js";
-import { warmupProfilesFromDisk } from "./live/bot-manager.js";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -16,7 +18,6 @@ async function main() {
 
   await app.register(cors, { origin: true });
   await registerRoutes(app);
-  await warmupProfilesFromDisk();
 
   app.setErrorHandler((err: any, _req, reply) => {
     app.log.error(err);
