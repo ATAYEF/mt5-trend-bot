@@ -1,5 +1,9 @@
 // ============================================================
-// اسکیمای اعتبارسنجی ورودی (Zod) — طبق بخش ۶ (BotConfig) و بخش ۷ (قرارداد API)
+// اسکیمای اعتبارسنجی ورودی (Zod)
+// نسبت به نسخه‌ی قبلی: analyzeRequestSchema/candleSchema و
+// accountSyncSchema/positionSyncSchema حذف شدند (دیگر لازم نیستند
+// چون local_service.py خودش تحلیل و اجرا می‌کند، نه سرور). به‌جایش
+// اسکیمای push وضعیت/لاگ و نتیجه‌ی دستور اضافه شده.
 // ============================================================
 import { z } from "zod";
 
@@ -76,27 +80,6 @@ export const botConfigSchema = z.object({
   INITIAL_BALANCE: z.number().optional(),
 });
 
-export const candleSchema = z.object({
-  time: z.number(),
-  open: z.number(),
-  high: z.number(),
-  low: z.number(),
-  close: z.number(),
-  volume: z.number().optional(),
-});
-
-// نکته: سند رسمی (بخش ۷) بدنه‌ی analyze را { symbol, timeframeMinutes, candles } تعریف کرده.
-// برای این‌که چند-پروفایلی هم‌زمان معنا داشته باشد (هر پروفایل Magic Number/تنظیمات خودش را دارد)
-// فیلد profile_name هم اضافه شده — این تنها انحراف کوچک از قرارداد اصلی است و در پاسخ نهایی
-// به کاربر توضیح داده می‌شود.
-export const analyzeRequestSchema = z.object({
-  profile_name: z.string(),
-  symbol: z.string(),
-  timeframeMinutes: z.number(),
-  candles: z.array(candleSchema).min(1),
-  htf_candles: z.array(candleSchema).optional(),
-});
-
 export const saveProfileSchema = z.object({ config: botConfigSchema });
 export const duplicateProfileSchema = z.object({ new_name: z.string().min(1) });
 export const startBotSchema = z.object({ profile_name: z.string(), config: botConfigSchema });
@@ -104,40 +87,40 @@ export const stopBotSchema = z.object({ profile_name: z.string() });
 export const openChartSchema = z.object({ profile_name: z.string(), symbol: z.string() });
 export const symbolGroupsSchema = z.record(z.string(), z.array(z.string()));
 
-// ------------------------------------------------------------
-// همگام‌سازی حساب واقعی — بریج (EA یا پایتون) هر چرخه این را
-// می‌فرستد تا داشبورد/گزارش‌ها از دفتر کاغذی به داده‌ی واقعی
-// MT5 سوییچ کنند (بدون تغییر در قرارداد سایر endpointها).
-// ------------------------------------------------------------
-export const positionSyncSchema = z.object({
-  ticket: z.number(),
-  symbol: z.string(),
-  type: z.enum(["buy", "sell"]),
-  volume: z.number(),
-  price_open: z.number(),
-  price_current: z.number().optional(),
-  sl: z.number().optional(),
-  tp: z.number().optional(),
-  profit: z.number(),
-  magic: z.number().optional(),
-  open_time: z.number().optional(),
-});
-
-export const accountSyncSchema = z.object({
-  profile_name: z.string(),
-  balance: z.number(),
-  equity: z.number(),
-  margin: z.number().optional(),
-  margin_free: z.number().optional(),
-  currency: z.string().optional(),
-  leverage: z.number().optional(),
-  positions: z.array(positionSyncSchema),
-});
-
 export const runBacktestSchema = z.object({
   config: botConfigSchema,
   symbols: z.array(z.string()).min(1),
   period_label: z.string(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
+});
+
+// ------------------------------------------------------------
+// endpointهای /api/local/* — بین سرور و local_service.py
+// ------------------------------------------------------------
+
+// وضعیت هر پروفایل — snapshot دقیقاً همان چیزی است که
+// get_status_snapshot() پایتون برمی‌گرداند، پس عمداً آزاد (z.any())
+// نگه داشته شده تا با هر تغییر کوچک در core.py نیاز به هماهنگی
+// دوطرفه‌ی اسکیما نباشد.
+export const localStatusPushSchema = z.object({
+  ts: z.string(),
+  profiles: z.record(
+    z.string(),
+    z.object({
+      running: z.boolean(),
+      snapshot: z.record(z.string(), z.any()).nullable(),
+      config: z.record(z.string(), z.any()).optional(),
+    })
+  ),
+});
+
+export const localLogsPushSchema = z.object({
+  lines: z.array(z.string()),
+});
+
+export const commandDoneSchema = z.object({
+  status: z.enum(["done", "failed"]),
+  result: z.any().optional(),
+  error: z.string().nullable().optional(),
 });

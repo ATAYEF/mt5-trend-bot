@@ -1,10 +1,20 @@
 // ============================================================
-// مسیرهای API — پیاده‌سازی کامل قرارداد بخش ۷ سند
+// مسیرهای API — نسخه‌ی ساده‌شده
+//
+// تفاوت اصلی با نسخه‌ی قبلی: این فایل دیگر هیچ منطق معاملاتی اجرا
+// نمی‌کند (analyze/indicators/signals/risk/backtest-engine/ai حذف
+// شدند). به‌جایش، هر عملیاتی که نیاز به MT5 واقعی دارد (start/stop،
+// گزارش، بک‌تست، آموزش AI) به‌صورت یک "دستور" در صف localState
+// گذاشته می‌شود؛ local_service.py (روی PC خودِ آتا) آن را می‌خواند،
+// واقعاً اجرا می‌کند، و نتیجه را برمی‌گرداند.
+//
+// قرارداد بیرونی (URLها) نسبت به نسخه‌ی قبلی طوری حفظ شده که فرانت‌اند
+// Next.js فعلی (src/lib/api.ts) بدون تغییر کار کند — فقط پیاده‌سازی
+// پشت‌صحنه‌اش عوض شده.
 // ============================================================
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
-  botConfigSchema,
   saveProfileSchema,
   duplicateProfileSchema,
   startBotSchema,
@@ -12,15 +22,15 @@ import {
   openChartSchema,
   symbolGroupsSchema,
   runBacktestSchema,
-  analyzeRequestSchema,
-  accountSyncSchema,
+  localStatusPushSchema,
+  localLogsPushSchema,
+  commandDoneSchema,
 } from "./schemas.js";
 import { profilesRepo } from "../store/profiles-repo.js";
 import { symbolGroupsRepo } from "../store/symbol-groups-repo.js";
-import { botManager } from "../live/bot-manager.js";
-import { startBacktestJob, getBacktestJob } from "../backtest/job-store.js";
-import { backtestTradesToCsv } from "../backtest/csv-export.js";
-import { startTraining, getTrainingJob, getAIEngineStatus, getCurrentModel, predictNext } from "../ai/service.js";
+import { localState } from "../store/local-state.js";
+import { requireLocalAuth } from "./local-auth.js";
+import { computeDashboardStats, computeGroupedPositions, computeAllStatuses } from "./derived.js";
 import {
   DEFAULT_CONFIG,
   RISK_PROFILES,
@@ -34,6 +44,11 @@ import { EXIT_REASON_LABELS } from "../backtest/exit-reasons.js";
 function badRequest(reply: any, message: string) {
   return reply.code(400).send({ error: message });
 }
+
+// دستورات نسبتاً سریع (استارت/گزارش) که فرانت‌اند پاسخ همزمان
+// انتظار دارد را تا این مدت داخلی پول می‌کنیم؛ دستورات کند
+// (بک‌تست/آموزش AI) با الگوی job جدا (پول از سمت فرانت) کار می‌کنند.
+const SYNC_WAIT_TIMEOUT_MS = 12_000;
 
 export async function registerRoutes(app: FastifyInstance) {
   // ---------------------------------------------------------
@@ -58,7 +73,8 @@ export async function registerRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------
-  // پروفایل‌ها
+  // پروفایل‌ها — بدون تغییر نسبت به قبل (فقط فایل JSON روی سرور،
+  // نیازی به رفتن سراغ PC ندارد چون فقط تنظیمات ذخیره می‌شود)
   // ---------------------------------------------------------
   app.get("/api/profiles", async () => ({ profiles: await profilesRepo.list() }));
 
@@ -89,7 +105,7 @@ export async function registerRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------
-  // گروه‌های نماد
+  // گروه‌های نماد — بدون تغییر
   // ---------------------------------------------------------
   app.get("/api/symbol-groups", async () => symbolGroupsRepo.get());
 
@@ -100,70 +116,93 @@ export async function registerRoutes(app: FastifyInstance) {
   });
 
   // ---------------------------------------------------------
-  // کنترل ربات
+  // کنترل ربات — دیگر مستقیم اجرا نمی‌شود، فقط صف می‌شود.
+  // چون PC ممکن است آفلاین باشد، پاسخ فوری "queued" است؛ وضعیت
+  // واقعی running با پولینگ /api/bot/status (که از localState
+  // می‌خواند) به‌روز می‌شود.
   // ---------------------------------------------------------
   app.post("/api/bot/start", async (req, reply) => {
     const parsed = startBotSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(reply, parsed.error.message);
-    // پروفایل را هم روی دیسک ذخیره کن تا با استارت بعدی سرور هم‌خوان بماند
     await profilesRepo.save(parsed.data.profile_name, parsed.data.config);
-    const result = await botManager.start(parsed.data.profile_name, parsed.data.config);
-    return result;
+    localState.enqueue("start", { profile_name: parsed.data.profile_name });
+    return { ok: true, queued: true };
   });
 
   app.post("/api/bot/stop", async (req, reply) => {
     const parsed = stopBotSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(reply, parsed.error.message);
-    return botManager.stop(parsed.data.profile_name);
+    localState.enqueue("stop", { profile_name: parsed.data.profile_name });
+    return { ok: true, queued: true };
   });
 
-  app.get("/api/bot/status", async () => ({ bots: botManager.getAllStatuses() }));
+  app.get("/api/bot/status", async () => {
+    const { profiles } = localState.getStatus();
+    return { bots: computeAllStatuses(profiles), online: localState.isOnline() };
+  });
 
   app.post("/api/bot/chart/open", async (req, reply) => {
     const parsed = openChartSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(reply, parsed.error.message);
-    botManager.openChartRequested(parsed.data.profile_name, parsed.data.symbol);
+    localState.enqueue("open_chart", { profile_name: parsed.data.profile_name, symbol: parsed.data.symbol });
     return { ok: true };
   });
 
   // ---------------------------------------------------------
-  // گزارش عملکرد
+  // گزارش عملکرد — دستور صف می‌شود، سرور تا SYNC_WAIT_TIMEOUT_MS
+  // منتظر می‌ماند تا local_service.py جواب بدهد (پاسخ همزمان،
+  // مثل قبل، برای این‌که فرانت‌اند نیاز به تغییر نداشته باشد)
   // ---------------------------------------------------------
   app.get("/api/report", async (req, reply) => {
     const query = req.query as { profile_name?: string; days?: string; start_date?: string; end_date?: string };
     if (!query.profile_name) return badRequest(reply, "profile_name الزامی است");
-    const days = query.days ? Number(query.days) : 30;
-    return botManager.getReport(query.profile_name, days, query.start_date, query.end_date);
+    if (!localState.isOnline()) {
+      return reply.code(503).send({ error: "PC محلی در حال حاضر آفلاین است — بعداً دوباره امتحان کنید" });
+    }
+    const cmd = localState.enqueue("get_report", {
+      profile_name: query.profile_name,
+      days: query.days ? Number(query.days) : 7,
+      start_date: query.start_date ?? null,
+      end_date: query.end_date ?? null,
+    });
+    const done = await localState.waitFor(cmd.id, SYNC_WAIT_TIMEOUT_MS);
+    if (!done || done.status !== "done") {
+      return reply.code(504).send({ error: done?.error ?? "پاسخ به‌موقع از PC محلی نرسید" });
+    }
+    return done.result;
   });
 
   // ---------------------------------------------------------
-  // بکتست
+  // بکتست — الگوی job (مثل قبل) چون ممکن است طول بکشد؛ فرانت‌اند
+  // همان /api/backtest/job/:job_id را پول می‌کند (job_id = command id)
   // ---------------------------------------------------------
   app.post("/api/backtest/run", async (req, reply) => {
     const parsed = runBacktestSchema.safeParse(req.body);
     if (!parsed.success) return badRequest(reply, parsed.error.message);
-    const jobId = startBacktestJob(parsed.data);
-    return { job_id: jobId };
+    if (!localState.isOnline()) {
+      return reply.code(503).send({ error: "PC محلی در حال حاضر آفلاین است — بک‌تست نیاز به اتصال زنده‌ی MT5 دارد" });
+    }
+    const cmd = localState.enqueue("run_backtest", {
+      config: parsed.data.config,
+      symbols: parsed.data.symbols,
+      start_date: parsed.data.start_date ?? null,
+      end_date: parsed.data.end_date ?? null,
+    });
+    return { job_id: cmd.id };
   });
 
   app.get("/api/backtest/job/:job_id", async (req, reply) => {
     const { job_id } = req.params as { job_id: string };
-    const job = getBacktestJob(job_id);
-    if (!job) return reply.code(404).send({ error: "Job یافت نشد" });
-    return job;
+    const cmd = localState.get(job_id);
+    if (!cmd) return reply.code(404).send({ error: "Job یافت نشد" });
+    if (cmd.status === "pending" || cmd.status === "sent") return { status: "running" };
+    if (cmd.status === "failed") return { status: "error", errors: [cmd.error ?? "خطای نامشخص"] };
+    return { status: "done", result: cmd.result };
   });
 
-  app.post("/api/backtest/export/:job_id", async (req, reply) => {
-    const { job_id } = req.params as { job_id: string };
-    const job = getBacktestJob(job_id);
-    if (!job || job.status !== "done" || !job.result) {
-      return reply.code(404).send({ error: "نتیجه‌ی بکتست آماده نیست" });
-    }
-    const csv = backtestTradesToCsv(job.result.trades as unknown as Record<string, unknown>[]);
-    reply.header("Content-Type", "text/csv; charset=utf-8");
-    reply.header("Content-Disposition", `attachment; filename="backtest-${job_id}.csv"`);
-    return csv;
-  });
+  // CSV export حذف شد چون به موتور TS وابسته بود — اگر لازم داری،
+  // ساده‌ترین راه: خروجی /api/backtest/job/:id (که آرایه‌ی trades دارد)
+  // را در خودِ فرانت‌اند با یک تابع کوچک به CSV تبدیل کن.
 
   // ---------------------------------------------------------
   // لاگ
@@ -171,80 +210,123 @@ export async function registerRoutes(app: FastifyInstance) {
   app.get("/api/log", async (req) => {
     const query = req.query as { since?: string };
     const since = query.since ? Number(query.since) : 0;
-    return botManager.getLogsSince(since);
+    return localState.getLogsSince(since);
   });
 
   // ---------------------------------------------------------
-  // داشبورد
+  // داشبورد و پوزیشن‌ها — از آخرین وضعیتِ push‌شده مشتق می‌شوند
   // ---------------------------------------------------------
-  app.get("/api/dashboard/stats", async () => botManager.getDashboardStats());
+  app.get("/api/dashboard/stats", async () => {
+    const { profiles } = localState.getStatus();
+    return computeDashboardStats(profiles);
+  });
+
+  app.get("/api/positions/grouped", async () => {
+    const { profiles } = localState.getStatus();
+    return computeGroupedPositions(profiles);
+  });
 
   // ---------------------------------------------------------
-  // پوزیشن‌ها
+  // موتور هوش مصنوعی — همان الگوی report/backtest
   // ---------------------------------------------------------
-  app.get("/api/positions/grouped", async () => botManager.getPositionsGrouped());
-
-  // ---------------------------------------------------------
-  // موتور هوش مصنوعی
-  // ---------------------------------------------------------
-  app.get("/api/ai-engine/status", async (req) => {
+  app.get("/api/ai-engine/status", async (req, reply) => {
     const query = req.query as { symbol?: string; timeframe?: string };
-    return getAIEngineStatus(query.symbol, query.timeframe ? Number(query.timeframe) : undefined);
+    if (!query.symbol) return badRequest(reply, "symbol الزامی است");
+    if (!localState.isOnline()) {
+      return { trained: false, offline: true };
+    }
+    const cmd = localState.enqueue("ai_status", {
+      symbol: query.symbol,
+      timeframe_minutes: query.timeframe ? Number(query.timeframe) : 15,
+    });
+    const done = await localState.waitFor(cmd.id, SYNC_WAIT_TIMEOUT_MS);
+    if (!done || done.status !== "done") return reply.code(504).send({ error: "پاسخ به‌موقع از PC محلی نرسید" });
+    return done.result;
   });
 
   app.post("/api/ai-engine/train", async (req, reply) => {
     const schema = z.object({ symbol: z.string(), timeframe: z.number(), bars: z.number() });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return badRequest(reply, parsed.error.message);
-    const jobKey = startTraining(parsed.data.symbol, parsed.data.timeframe, parsed.data.bars);
-    return { job_key: jobKey, status: "running" };
+    if (!localState.isOnline()) {
+      return reply.code(503).send({ error: "PC محلی آفلاین است — آموزش نیاز به داده‌ی واقعی MT5 دارد" });
+    }
+    const cmd = localState.enqueue("train_ai", {
+      symbol: parsed.data.symbol,
+      timeframe_minutes: parsed.data.timeframe,
+      bars: parsed.data.bars,
+    });
+    return { job_key: cmd.id, status: "running" };
   });
 
   app.get("/api/ai-engine/train/status", async (req, reply) => {
-    const query = req.query as { symbol?: string; timeframe?: string };
-    if (!query.symbol || !query.timeframe) return badRequest(reply, "symbol و timeframe الزامی است");
-    const job = getTrainingJob(query.symbol, Number(query.timeframe));
-    if (!job) return reply.code(404).send({ error: "Job یافت نشد" });
-    return job;
+    const query = req.query as { symbol?: string; timeframe?: string; job_key?: string };
+    // ترجیحاً با job_key (که train برگردانده) چک کن؛ برای سازگاری با
+    // فرانت قدیمی، اگر job_key نبود و symbol/timeframe بود هم قبول کن
+    // (در آن حالت فقط آخرین وضعیت شناخته‌شده را با ai_status می‌گیریم)
+    if (query.job_key) {
+      const cmd = localState.get(query.job_key);
+      if (!cmd) return reply.code(404).send({ error: "Job یافت نشد" });
+      if (cmd.status === "pending" || cmd.status === "sent") return { status: "running" };
+      if (cmd.status === "failed") return { status: "error", error: cmd.error };
+      return { status: "done", result: cmd.result };
+    }
+    if (!query.symbol || !query.timeframe) return badRequest(reply, "job_key یا symbol+timeframe الزامی است");
+    const cmd = localState.enqueue("ai_status", { symbol: query.symbol, timeframe_minutes: Number(query.timeframe) });
+    const done = await localState.waitFor(cmd.id, SYNC_WAIT_TIMEOUT_MS);
+    if (!done || done.status !== "done") return reply.code(504).send({ error: "پاسخ به‌موقع از PC محلی نرسید" });
+    return { status: "done", result: done.result };
   });
 
   app.post("/api/ai-engine/predict", async (req, reply) => {
-    const schema = z.object({ candles: z.array(z.any()).min(1) });
+    // نکته: برخلاف نسخه‌ی قبلی (که کندل از فرانت می‌گرفت)، این نسخه
+    // خودش مستقیماً از MT5 واقعی روی PC آخرین کندل‌ها را می‌خواند —
+    // دقیق‌تر و نیازی به ارسال داده از مرورگر نیست.
+    const schema = z.object({ symbol: z.string(), timeframe: z.number().optional() });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return badRequest(reply, parsed.error.message);
-    const model = await getCurrentModel();
-    if (!model) return reply.code(400).send({ error: "هنوز مدلی آموزش داده نشده" });
-    const prediction = predictNext(model, parsed.data.candles as any);
-    if (!prediction) return reply.code(400).send({ error: "داده‌ی کافی برای استخراج ویژگی وجود ندارد" });
-    return prediction;
-  });
-
-  // ---------------------------------------------------------
-  // سینک حساب واقعی — بریج (EA/پایتون) هر چرخه (و بعد از هر سفارش
-  // موفق) بالانس/اکوییتی/پوزیشن‌های واقعی MT5 را اینجا گزارش می‌کند.
-  // جایگزین تدریجی دفتر کاغذی در داشبورد/گزارش‌ها.
-  // ---------------------------------------------------------
-  app.post("/api/v1/account-sync", async (req, reply) => {
-    const parsed = accountSyncSchema.safeParse(req.body);
-    if (!parsed.success) return badRequest(reply, parsed.error.message);
-    const { profile_name, ...payload } = parsed.data;
-    const result = botManager.receiveAccountSync(profile_name, payload);
-    if (!("ok" in result) || !result.ok) return reply.code(404).send(result);
-    return result;
-  });
-
-  // ---------------------------------------------------------
-  // endpoint داخلی پل MT5 — تنها endpointی که پل سمت MT5 صدا می‌زند
-  // ---------------------------------------------------------
-  app.post("/api/v1/analyze", async (req, reply) => {
-    const parsed = analyzeRequestSchema.safeParse(req.body);
-    if (!parsed.success) return badRequest(reply, parsed.error.message);
-    const { profile_name, symbol, timeframeMinutes, candles } = parsed.data;
-    try {
-      const result = await botManager.analyze(profile_name, symbol, timeframeMinutes, candles);
-      return result;
-    } catch (err: any) {
-      return reply.code(500).send({ error: err?.message ?? "خطای داخلی در تحلیل" });
+    if (!localState.isOnline()) {
+      return reply.code(503).send({ error: "PC محلی آفلاین است" });
     }
+    const cmd = localState.enqueue("predict_ai", {
+      symbol: parsed.data.symbol,
+      timeframe_minutes: parsed.data.timeframe ?? 15,
+    });
+    const done = await localState.waitFor(cmd.id, SYNC_WAIT_TIMEOUT_MS);
+    if (!done || done.status !== "done") return reply.code(504).send({ error: done?.error ?? "پاسخ به‌موقع نرسید" });
+    return done.result;
+  });
+
+  // ===========================================================
+  // Endpointهای داخلی — فقط local_service.py این‌ها را صدا می‌زند
+  // ===========================================================
+  app.register(async (local) => {
+    local.addHook("preHandler", requireLocalAuth);
+
+    local.post("/api/local/status", async (req, reply) => {
+      const parsed = localStatusPushSchema.safeParse(req.body);
+      if (!parsed.success) return badRequest(reply, parsed.error.message);
+      localState.pushStatus(parsed.data);
+      return { ok: true };
+    });
+
+    local.get("/api/local/commands", async () => {
+      return localState.takePending();
+    });
+
+    local.post("/api/local/commands/:id/done", async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const parsed = commandDoneSchema.safeParse(req.body);
+      if (!parsed.success) return badRequest(reply, parsed.error.message);
+      localState.complete(id, parsed.data.status, parsed.data.result, parsed.data.error ?? undefined);
+      return { ok: true };
+    });
+
+    local.post("/api/local/logs", async (req, reply) => {
+      const parsed = localLogsPushSchema.safeParse(req.body);
+      if (!parsed.success) return badRequest(reply, parsed.error.message);
+      localState.pushLogs(parsed.data.lines);
+      return { ok: true };
+    });
   });
 }
