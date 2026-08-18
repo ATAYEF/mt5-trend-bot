@@ -108,6 +108,10 @@ class TrendPilotBridge:
         self.config = config
         self.session = requests.Session()
         self.states: dict[str, SymbolState] = {s: SymbolState() for s in config.symbols}
+        # Magic Number همین پروفایل — از سرور خوانده می‌شود (نه هاردکد)
+        # تا پوزیشن‌های این پروفایل از پوزیشن‌های سایر پروفایل‌ها/معاملات
+        # دستی روی همان حساب تفکیک بمانند.
+        self.magic_number: int = 0
 
     # --------------------------------------------------------
     # اتصال به MT5
@@ -140,6 +144,30 @@ class TrendPilotBridge:
         for symbol in self.config.symbols:
             if not mt5.symbol_select(symbol, True):
                 log.warning("نماد %s در Market Watch در دسترس نیست", symbol)
+
+        self.fetch_magic_number()
+
+    # --------------------------------------------------------
+    # خواندن Magic Number همین پروفایل از سرور (یک‌بار در شروع کار)
+    # --------------------------------------------------------
+    def fetch_magic_number(self) -> None:
+        url = f"{self.config.server_base_url}/api/profiles"
+        try:
+            resp = self.session.get(url, timeout=8)
+            resp.raise_for_status()
+            profiles = resp.json().get("profiles", {})
+            profile = profiles.get(self.config.profile_name)
+            if profile and "MAGIC_NUMBER" in profile:
+                self.magic_number = int(profile["MAGIC_NUMBER"])
+                log.info("Magic Number پروفایل «%s»: %d", self.config.profile_name, self.magic_number)
+            else:
+                log.warning(
+                    "پروفایل «%s» روی سرور یافت نشد — Magic Number روی 0 می‌ماند "
+                    "(ابتدا پروفایل را از وب UI بسازید/استارت کنید)",
+                    self.config.profile_name,
+                )
+        except requests.RequestException as exc:
+            log.warning("خواندن Magic Number از سرور ناموفق بود: %s — روی 0 می‌ماند", exc)
 
     def disconnect(self) -> None:
         mt5.shutdown()
@@ -227,7 +255,7 @@ class TrendPilotBridge:
             "sl": float(sl) if sl is not None else 0.0,
             "tp": float(tp) if tp is not None else 0.0,
             "deviation": 20,
-            "magic": 0,
+            "magic": self.magic_number,
             "comment": "TrendPilot",
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": mt5.ORDER_FILLING_IOC,
@@ -241,12 +269,19 @@ class TrendPilotBridge:
                 "سفارش %s روی %s اجرا شد — تیکت %s — دلیل سرور: %s",
                 order, symbol, result.order, decision.get("reason", ""),
             )
+        # بلافاصله بعد از هر تلاش برای معامله (موفق یا ناموفق)، وضعیت واقعی
+        # حساب/پوزیشن‌ها را به سرور گزارش کن تا داشبورد بدون تأخیر آپدیت شود.
+        self.sync_account()
 
     def close_all_positions(self, symbol: str) -> None:
         positions = mt5.positions_get(symbol=symbol)
         if not positions:
             return
-        for pos in positions:
+        # فقط پوزیشن‌های خودِ همین پروفایل (Magic Number) را ببند —
+        # نه معاملات دستی یا پروفایل‌های دیگری که ممکن است روی همین
+        # نماد در همین حساب باز باشند.
+        own_positions = [p for p in positions if p.magic == self.magic_number]
+        for pos in own_positions:
             tick = mt5.symbol_info_tick(symbol)
             if tick is None:
                 continue
@@ -259,6 +294,7 @@ class TrendPilotBridge:
                 "position": pos.ticket,
                 "price": tick.bid if is_buy else tick.ask,
                 "deviation": 20,
+                "magic": self.magic_number,
                 "comment": "TrendPilot close",
                 "type_time": mt5.ORDER_TIME_GTC,
                 "type_filling": mt5.ORDER_FILLING_IOC,
@@ -268,6 +304,56 @@ class TrendPilotBridge:
                 log.error("خطا در بستن پوزیشن %s: %s", pos.ticket, result)
             else:
                 log.info("پوزیشن %s (%s) بسته شد", pos.ticket, symbol)
+        self.sync_account()
+
+    # --------------------------------------------------------
+    # سینک وضعیت واقعی حساب — بالانس/اکوییتی/پوزیشن‌های واقعی (نه
+    # دفتر کاغذی سرور). سبک و بدون تصمیم‌گیری، طبق همان اصل طراحی.
+    # --------------------------------------------------------
+    def sync_account(self) -> None:
+        account = mt5.account_info()
+        if account is None:
+            log.warning("سینک حساب رد شد — اطلاعات حساب MT5 در دسترس نیست")
+            return
+
+        all_positions = mt5.positions_get() or ()
+        # فقط پوزیشن‌های همین پروفایل (تفکیک با Magic Number)
+        own_positions = [p for p in all_positions if p.magic == self.magic_number]
+
+        payload = {
+            "profile_name": self.config.profile_name,
+            "balance": float(account.balance),
+            "equity": float(account.equity),
+            "margin": float(account.margin),
+            "margin_free": float(account.margin_free),
+            "currency": account.currency,
+            "leverage": int(account.leverage),
+            "positions": [
+                {
+                    "ticket": int(p.ticket),
+                    "symbol": p.symbol,
+                    "type": "buy" if p.type == mt5.POSITION_TYPE_BUY else "sell",
+                    "volume": float(p.volume),
+                    "price_open": float(p.price_open),
+                    "price_current": float(p.price_current),
+                    "sl": float(p.sl) if p.sl else None,
+                    "tp": float(p.tp) if p.tp else None,
+                    "profit": float(p.profit),
+                    "magic": int(p.magic),
+                    "open_time": int(p.time),
+                }
+                for p in own_positions
+            ],
+        }
+
+        url = f"{self.config.server_base_url}/api/v1/account-sync"
+        try:
+            resp = self.session.post(url, json=payload, timeout=8)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            # سینک هیچ‌وقت نباید حلقه‌ی معاملاتی اصلی را متوقف کند —
+            # فقط لاگ می‌کنیم و به کار خودمان ادامه می‌دهیم.
+            log.warning("سینک حساب با سرور ناموفق بود: %s", exc)
 
     # --------------------------------------------------------
     # حلقه‌ی اصلی — همه‌ی نمادهای پروفایل را پشت سر هم پردازش می‌کند
@@ -288,6 +374,15 @@ class TrendPilotBridge:
                     self.process_symbol(symbol)
                 except Exception:
                     log.exception("خطای غیرمنتظره هنگام پردازش %s", symbol)
+
+            # سینک دوره‌ای — حتی وقتی معامله‌ی جدیدی انجام نشده، چون
+            # سود/زیان پوزیشن‌های باز با حرکت قیمت لحظه‌به‌لحظه تغییر
+            # می‌کند و داشبورد باید آن را نشان بدهد.
+            try:
+                self.sync_account()
+            except Exception:
+                log.exception("خطای غیرمنتظره در سینک دوره‌ای حساب")
+
             time.sleep(self.config.poll_interval_sec)
 
     def process_symbol(self, symbol: str) -> None:

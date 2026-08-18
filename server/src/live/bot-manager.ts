@@ -20,6 +20,37 @@ import type { BotConfig } from "../types.js";
 import type { OpenTradeState } from "../risk/position-management.js";
 import { profilesRepo } from "../store/profiles-repo.js";
 
+// چند ثانیه بعد از آخرین سینک، داده‌ی واقعی «تازه» حساب می‌شود.
+// اگر بریج/EA بیش از این مدت سکوت کند (قطع شدن ترمینال، بسته شدن
+// اسکریپت و ...)، سرور خودکار به دفتر کاغذی برمی‌گردد تا داشبورد
+// داده‌ی بی‌اعتبار و کهنه نشان ندهد.
+const REAL_SYNC_STALE_MS = 60_000;
+
+export interface RealSyncPosition {
+  ticket: number;
+  symbol: string;
+  direction: "buy" | "sell";
+  volume: number;
+  entryPrice: number;
+  currentPrice?: number;
+  sl?: number;
+  tp?: number;
+  profit: number;
+  magic?: number;
+  openTime?: number;
+}
+
+export interface RealAccountSync {
+  updatedAt: number;
+  balance: number;
+  equity: number;
+  margin?: number;
+  marginFree?: number;
+  currency?: string;
+  leverage?: number;
+  positions: RealSyncPosition[];
+}
+
 export interface LivePosition extends OpenTradeState {
   volume: number;
   contractSize: number;
@@ -65,6 +96,7 @@ interface ProfileRuntime {
   symbolIssues: Record<string, string>;
   configuredSymbols: string[];
   lastAnalyzeAt: number | null;
+  realSync: RealAccountSync | null;
 }
 
 const CONTRACT_SIZE_BY_PREFIX: { test: (s: string) => boolean; size: number }[] = [
@@ -139,6 +171,7 @@ class BotManager {
       symbolIssues: {},
       configuredSymbols: config.SYMBOLS,
       lastAnalyzeAt: null,
+      realSync: null,
     };
     this.runtimes.set(profileName, rt);
     this.log(profileName, "info", `ربات شروع شد — نمادها: ${config.SYMBOLS.join(", ")} — Magic: ${config.MAGIC_NUMBER}`);
@@ -280,32 +313,112 @@ class BotManager {
     this.log(profileName, "info", "درخواست باز کردن چارت از UI دریافت شد", symbol);
   }
 
+  /**
+   * دریافت گزارش دوره‌ای بریج (EA یا پایتون) — بالانس/اکوییتی/پوزیشن‌های
+   * *واقعی* حساب MT5. جایگزین تدریجی دفتر کاغذی، بدون تغییر قرارداد
+   * سایر endpointها: getStatus/getDashboardStats/getPositionsGrouped
+   * وقتی داده‌ی تازه‌ی واقعی موجود باشد از آن استفاده می‌کنند، وگرنه
+   * fallback به دفتر کاغذی (مثلاً قبل از آپدیت بریج، یا حین بک‌تست).
+   */
+  receiveAccountSync(profileName: string, payload: {
+    balance: number;
+    equity: number;
+    margin?: number;
+    margin_free?: number;
+    currency?: string;
+    leverage?: number;
+    positions: {
+      ticket: number;
+      symbol: string;
+      type: "buy" | "sell";
+      volume: number;
+      price_open: number;
+      price_current?: number;
+      sl?: number;
+      tp?: number;
+      profit: number;
+      magic?: number;
+      open_time?: number;
+    }[];
+  }) {
+    const rt = this.runtimes.get(profileName);
+    if (!rt) return { ok: false, error: "پروفایل یافت نشد یا در حال اجرا نیست" };
+    rt.realSync = {
+      updatedAt: Date.now(),
+      balance: payload.balance,
+      equity: payload.equity,
+      margin: payload.margin,
+      marginFree: payload.margin_free,
+      currency: payload.currency,
+      leverage: payload.leverage,
+      positions: payload.positions.map((p) => ({
+        ticket: p.ticket,
+        symbol: p.symbol,
+        direction: p.type,
+        volume: p.volume,
+        entryPrice: p.price_open,
+        currentPrice: p.price_current,
+        sl: p.sl,
+        tp: p.tp,
+        profit: p.profit,
+        magic: p.magic,
+        openTime: p.open_time,
+      })),
+    };
+    return { ok: true };
+  }
+
+  /** آیا داده‌ی سینک واقعی برای این پروفایل موجود و تازه است؟ */
+  private hasFreshRealSync(rt: ProfileRuntime): rt is ProfileRuntime & { realSync: RealAccountSync } {
+    return !!rt.realSync && Date.now() - rt.realSync.updatedAt <= REAL_SYNC_STALE_MS;
+  }
+
   getStatus(profileName: string) {
     const rt = this.runtimes.get(profileName);
     if (!rt) return null;
+    const live = this.hasFreshRealSync(rt) ? rt.realSync : null;
+    const balance = live ? live.balance : rt.balance;
+    const equity = live ? live.equity : rt.equity;
+    const openPositions = live
+      ? live.positions.map((p) => ({
+          ticket: p.ticket,
+          symbol: p.symbol,
+          type: p.direction === "buy" ? 0 : 1,
+          volume: p.volume,
+          price_open: p.entryPrice,
+          price_current: p.currentPrice ?? p.entryPrice,
+          sl: p.sl,
+          tp: p.tp,
+          profit: p.profit,
+          magic: p.magic ?? rt.config.MAGIC_NUMBER,
+          margin: null,
+          leverage: live.leverage ?? 100,
+        }))
+      : Array.from(rt.positions.values()).map((p) => ({
+          ticket: p.ticket,
+          symbol: p.symbol,
+          type: p.direction === "buy" ? 0 : 1,
+          volume: p.volume,
+          price_open: p.entryPrice,
+          price_current: p.entryPrice + (p.direction === "buy" ? 1 : -1) * (p.profitCurrency / (p.volume * p.contractSize) || 0),
+          sl: p.sl,
+          tp: p.tp,
+          profit: p.profitCurrency,
+          magic: rt.config.MAGIC_NUMBER,
+          margin: p.marginUsed,
+          leverage: 100,
+        }));
     return {
       connected: rt.running,
       is_running: rt.running,
       profile_name: rt.profileName,
       magic_number: rt.config.MAGIC_NUMBER,
-      balance: rt.balance,
-      equity: rt.equity,
-      currency: "USD",
-      account_leverage: 100,
-      open_positions: Array.from(rt.positions.values()).map((p) => ({
-        ticket: p.ticket,
-        symbol: p.symbol,
-        type: p.direction === "buy" ? 0 : 1,
-        volume: p.volume,
-        price_open: p.entryPrice,
-        price_current: p.entryPrice + (p.direction === "buy" ? 1 : -1) * (p.profitCurrency / (p.volume * p.contractSize) || 0),
-        sl: p.sl,
-        tp: p.tp,
-        profit: p.profitCurrency,
-        magic: rt.config.MAGIC_NUMBER,
-        margin: p.marginUsed,
-        leverage: 100,
-      })),
+      data_source: live ? "mt5_live" : "paper_ledger",
+      balance,
+      equity,
+      currency: live?.currency ?? "USD",
+      account_leverage: live?.leverage ?? 100,
+      open_positions: openPositions,
       rejected_signals_total: rt.rejectedSignalsTotal,
       rejected_signals_by_symbol: Object.fromEntries(rt.rejectedBySymbol),
       rejected_signals_by_code: Object.fromEntries(rt.rejectedByCode),
@@ -329,22 +442,43 @@ class BotManager {
     const out: Record<string, Record<string, any[]>> = {};
     for (const [name, rt] of this.runtimes) {
       const bySymbol: Record<string, any[]> = {};
-      for (const p of rt.positions.values()) {
-        bySymbol[p.symbol] = bySymbol[p.symbol] ?? [];
-        bySymbol[p.symbol].push({
-          ticket: p.ticket,
-          symbol: p.symbol,
-          type: p.direction === "buy" ? 0 : 1,
-          volume: p.volume,
-          price_open: p.entryPrice,
-          price_current: p.entryPrice,
-          sl: p.sl,
-          tp: p.tp,
-          profit: p.profitCurrency,
-          magic: rt.config.MAGIC_NUMBER,
-          margin: p.marginUsed,
-          leverage: 100,
-        });
+      const live = this.hasFreshRealSync(rt) ? rt.realSync : null;
+      if (live) {
+        for (const p of live.positions) {
+          bySymbol[p.symbol] = bySymbol[p.symbol] ?? [];
+          bySymbol[p.symbol].push({
+            ticket: p.ticket,
+            symbol: p.symbol,
+            type: p.direction === "buy" ? 0 : 1,
+            volume: p.volume,
+            price_open: p.entryPrice,
+            price_current: p.currentPrice ?? p.entryPrice,
+            sl: p.sl,
+            tp: p.tp,
+            profit: p.profit,
+            magic: p.magic ?? rt.config.MAGIC_NUMBER,
+            margin: null,
+            leverage: live.leverage ?? 100,
+          });
+        }
+      } else {
+        for (const p of rt.positions.values()) {
+          bySymbol[p.symbol] = bySymbol[p.symbol] ?? [];
+          bySymbol[p.symbol].push({
+            ticket: p.ticket,
+            symbol: p.symbol,
+            type: p.direction === "buy" ? 0 : 1,
+            volume: p.volume,
+            price_open: p.entryPrice,
+            price_current: p.entryPrice,
+            sl: p.sl,
+            tp: p.tp,
+            profit: p.profitCurrency,
+            magic: rt.config.MAGIC_NUMBER,
+            margin: p.marginUsed,
+            leverage: 100,
+          });
+        }
       }
       out[name] = bySymbol;
     }
@@ -392,14 +526,13 @@ class BotManager {
     let dailyProfit = 0;
     let anyConnected = false;
     for (const rt of this.runtimes.values()) {
-      balance += rt.balance;
-      equity += rt.equity;
-      if (rt.running) {
-        runningBots += 1;
-        anyConnected = true;
-      }
-      openPositions += rt.positions.size;
-      dailyProfit += rt.equity - rt.dailyStartBalance;
+      const live = this.hasFreshRealSync(rt) ? rt.realSync : null;
+      balance += live ? live.balance : rt.balance;
+      equity += live ? live.equity : rt.equity;
+      if (rt.running) runningBots += 1;
+      if (live) anyConnected = true; // اتصال واقعی به MT5 = دریافت سینک تازه، نه فقط فلگ running سرور
+      openPositions += live ? live.positions.length : rt.positions.size;
+      dailyProfit += (live ? live.equity : rt.equity) - rt.dailyStartBalance;
     }
     return {
       balance,
