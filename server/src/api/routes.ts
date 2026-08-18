@@ -13,6 +13,7 @@ import {
   symbolGroupsSchema,
   runBacktestSchema,
   analyzeRequestSchema,
+  accountSyncSchema,
 } from "./schemas.js";
 import { profilesRepo } from "../store/profiles-repo.js";
 import { symbolGroupsRepo } from "../store/symbol-groups-repo.js";
@@ -216,6 +217,20 @@ export async function registerRoutes(app: FastifyInstance) {
     const prediction = predictNext(model, parsed.data.candles as any);
     if (!prediction) return reply.code(400).send({ error: "داده‌ی کافی برای استخراج ویژگی وجود ندارد" });
     return prediction;
+  });
+
+  // ---------------------------------------------------------
+  // سینک حساب واقعی — بریج (EA/پایتون) هر چرخه (و بعد از هر سفارش
+  // موفق) بالانس/اکوییتی/پوزیشن‌های واقعی MT5 را اینجا گزارش می‌کند.
+  // جایگزین تدریجی دفتر کاغذی در داشبورد/گزارش‌ها.
+  // ---------------------------------------------------------
+  app.post("/api/v1/account-sync", async (req, reply) => {
+    const parsed = accountSyncSchema.safeParse(req.body);
+    if (!parsed.success) return badRequest(reply, parsed.error.message);
+    const { profile_name, ...payload } = parsed.data;
+    const result = botManager.receiveAccountSync(profile_name, payload);
+    if (!("ok" in result) || !result.ok) return reply.code(404).send(result);
+    return result;
   });
 
   // ---------------------------------------------------------

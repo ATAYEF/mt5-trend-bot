@@ -104,6 +104,36 @@ export const stopBotSchema = z.object({ profile_name: z.string() });
 export const openChartSchema = z.object({ profile_name: z.string(), symbol: z.string() });
 export const symbolGroupsSchema = z.record(z.string(), z.array(z.string()));
 
+// ------------------------------------------------------------
+// همگام‌سازی حساب واقعی — بریج (EA یا پایتون) هر چرخه این را
+// می‌فرستد تا داشبورد/گزارش‌ها از دفتر کاغذی به داده‌ی واقعی
+// MT5 سوییچ کنند (بدون تغییر در قرارداد سایر endpointها).
+// ------------------------------------------------------------
+export const positionSyncSchema = z.object({
+  ticket: z.number(),
+  symbol: z.string(),
+  type: z.enum(["buy", "sell"]),
+  volume: z.number(),
+  price_open: z.number(),
+  price_current: z.number().optional(),
+  sl: z.number().optional(),
+  tp: z.number().optional(),
+  profit: z.number(),
+  magic: z.number().optional(),
+  open_time: z.number().optional(),
+});
+
+export const accountSyncSchema = z.object({
+  profile_name: z.string(),
+  balance: z.number(),
+  equity: z.number(),
+  margin: z.number().optional(),
+  margin_free: z.number().optional(),
+  currency: z.string().optional(),
+  leverage: z.number().optional(),
+  positions: z.array(positionSyncSchema),
+});
+
 export const runBacktestSchema = z.object({
   config: botConfigSchema,
   symbols: z.array(z.string()).min(1),
